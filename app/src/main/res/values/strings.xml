@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Cluster Launcher</string>
+    <string name="slot_music">MÚSICA</string>
+    <string name="slot_gps">NAVEGAÇÃO</string>
+    <string name="slot_radio">RÁDIO</string>
+    <string name="slot_zlink">ZLINK5</string>
+    <string name="slot_settings">CONFIG</string>
+    <string name="no_media_playing">Nenhuma mídia em reprodução</string>
+    <string name="media_permission_title">Controle de mídia desativado</string>
+    <string name="media_permission_desc">Toque aqui para conceder permissão de leitura de mídia nas configurações do Android</string>
+    <string name="select_app_title">Vincular aplicativo ao slot</string>
+    <string name="usb_connected">USB Conectado</string>
+    <string name="usb_disconnected">Nenhum USB</string>
+    <string name="bluetooth_connected">Bluetooth Conectado</string>
+    <string name="bluetooth_disconnected">Bluetooth Desconectado</string>
+    <string name="set_as_default_launcher">Definir padrão</string>
+</resources>

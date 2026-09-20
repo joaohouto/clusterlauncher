@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <color name="deep_metallic_background">#FF0B0C0E</color>
+    <color name="surface_card">#FF17181B</color>
+
+    <style name="Theme.ClusterLauncher" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/deep_metallic_background</item>
+        <item name="android:colorBackground">@color/deep_metallic_background</item>
+        <item name="android:statusBarColor">@color/deep_metallic_background</item>
+        <item name="android:navigationBarColor">@color/deep_metallic_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/deep_metallic_background</item>
+    </style>
+</resources>

@@ -1,0 +1,82 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Outer Chiseled Automotive Shield -->
+    <path
+        android:pathData="M50,10 L84,23 C84,58 69,78 50,90 C31,78 16,58 16,23 Z"
+        android:strokeWidth="4.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+
+    <!-- Instrument Cluster Speedometer Arc -->
+    <path
+        android:pathData="M31,59 A22,22 0 1,1 69,59"
+        android:strokeWidth="3.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Graduation Ticks (Speed Notches) -->
+    <!-- 12 o'clock tick -->
+    <path
+        android:pathData="M50,28 L50,34.5"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round" />
+    <!-- 10 o'clock tick -->
+    <path
+        android:pathData="M36.5,33.5 L41,39"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round" />
+    <!-- 8 o'clock tick -->
+    <path
+        android:pathData="M32,47.5 L38.5,48.5"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round" />
+    <!-- 2 o'clock peak tick -->
+    <path
+        android:pathData="M63.5,33.5 L59,39"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round" />
+    <!-- 4 o'clock tick -->
+    <path
+        android:pathData="M68,47.5 L61.5,48.5"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round" />
+
+    <!-- Precision Speedometer Needle -->
+    <path
+        android:pathData="M48.2,51.8 L65,33 L64,30 L46.5,49.5 Z"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- Gauge Center Hub -->
+    <path
+        android:pathData="M50,50m-5.5,0a5.5,5.5 0 1,1 11,0a5.5,5.5 0 1,1 -11,0"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFFFF"
+        android:fillColor="#00000000" />
+
+    <!-- Dual Aerodynamic Performance Chevrons -->
+    <path
+        android:pathData="M41,72 L50,78 L59,72"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M44,79 L50,83 L56,79"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+</vector>

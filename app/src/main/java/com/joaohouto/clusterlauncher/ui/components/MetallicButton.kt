@@ -1,0 +1,143 @@
+package com.joaohouto.clusterlauncher.ui.components
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
+import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.NeedleRedDark
+import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
+import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
+import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
+
+enum class MetallicButtonStyle {
+    Standard,
+    Accent,
+    Outlined
+}
+
+private val ButtonShape = RoundedCornerShape(18.dp)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun MetallicButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    style: MetallicButtonStyle = MetallicButtonStyle.Standard,
+    icon: ImageVector? = null,
+    text: String? = null,
+    isActive: Boolean = false,
+    minSize: Dp = 56.dp,
+    iconSize: Dp = 26.dp,
+    textSize: TextUnit = 14.sp,
+    contentDescription: String? = null
+) {
+    val backgroundBrush = remember(style, isActive) {
+        when (style) {
+            MetallicButtonStyle.Accent -> Brush.verticalGradient(
+                colors = listOf(NeedleRed, NeedleRedDark)
+            )
+            MetallicButtonStyle.Standard -> if (isActive) {
+                Brush.verticalGradient(listOf(MetallicIntermediate, SurfaceCard))
+            } else {
+                Brush.verticalGradient(listOf(SurfaceCard, Color(0xFF101215)))
+            }
+            MetallicButtonStyle.Outlined -> Brush.verticalGradient(
+                colors = listOf(SurfaceCard, SurfaceCard)
+            )
+        }
+    }
+
+    val borderStroke = remember(style, isActive) {
+        when {
+            isActive -> BorderStroke(1.5.dp, NeedleRed)
+            style == MetallicButtonStyle.Accent -> BorderStroke(1.dp, NeedleRed.copy(alpha = 0.8f))
+            else -> BorderStroke(1.dp, SurfaceCardBorder)
+        }
+    }
+
+    val contentColor = when {
+        isActive -> NeedleRed
+        style == MetallicButtonStyle.Accent -> TextPrimary
+        else -> TextPrimary
+    }
+
+    Surface(
+        modifier = modifier
+            .defaultMinSize(minWidth = minSize, minHeight = minSize)
+            .clip(ButtonShape)
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple(color = if (style == MetallicButtonStyle.Accent) Color.White else NeedleRed),
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        shape = ButtonShape,
+        border = borderStroke,
+        color = Color.Transparent
+    ) {
+        Box(
+            modifier = Modifier
+                .background(backgroundBrush)
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = contentDescription ?: text,
+                        tint = contentColor,
+                        modifier = Modifier.size(iconSize)
+                    )
+                }
+                if (icon != null && !text.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+                if (!text.isNullOrEmpty()) {
+                    Text(
+                        text = text,
+                        color = contentColor,
+                        fontSize = textSize,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.6.sp
+                    )
+                }
+            }
+        }
+    }
+}
