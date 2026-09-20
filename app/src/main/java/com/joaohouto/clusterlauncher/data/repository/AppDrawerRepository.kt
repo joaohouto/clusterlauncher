@@ -20,7 +20,12 @@ class AppDrawerRepository(private val context: Context) {
         }
     }
 
-    suspend fun getInstalledApps(): List<AppItem> = withContext(Dispatchers.IO) {
+    @Volatile
+    private var cachedApps: List<AppItem>? = null
+    @Volatile
+    private var cachedPackageSignatures: Set<String>? = null
+
+    suspend fun getInstalledApps(forceReload: Boolean = false): List<AppItem> = withContext(Dispatchers.IO) {
         val pm = context.packageManager
         val intent = Intent(Intent.ACTION_MAIN, null).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
@@ -28,7 +33,17 @@ class AppDrawerRepository(private val context: Context) {
         val resolveInfos = pm.queryIntentActivities(intent, 0)
         val ownPackage = context.packageName
 
-        resolveInfos
+        val currentPackages = resolveInfos
+            .filter { it.activityInfo.packageName != ownPackage }
+            .map { it.activityInfo.packageName }
+            .toSet()
+
+        // If packages haven't changed and we already have cached apps, return instantly without disk reads
+        if (!forceReload && cachedApps != null && cachedPackageSignatures == currentPackages) {
+            return@withContext cachedApps!!
+        }
+
+        val apps = resolveInfos
             .filter { it.activityInfo.packageName != ownPackage }
             .map { resolveInfo ->
                 val pkgName = resolveInfo.activityInfo.packageName
@@ -51,6 +66,10 @@ class AppDrawerRepository(private val context: Context) {
                 )
             }
             .sortedBy { it.label.lowercase() }
+
+        cachedPackageSignatures = currentPackages
+        cachedApps = apps
+        apps
     }
 
     private fun drawableToRgb565Bitmap(drawable: Drawable): Bitmap? {

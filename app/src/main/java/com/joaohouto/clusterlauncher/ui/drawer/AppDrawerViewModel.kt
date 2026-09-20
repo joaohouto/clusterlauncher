@@ -49,9 +49,12 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         loadApps()
     }
 
-    fun loadApps() {
+    fun loadApps(forceReload: Boolean = false) {
         viewModelScope.launch {
-            _apps.value = appDrawerRepository.getInstalledApps()
+            val loaded = appDrawerRepository.getInstalledApps(forceReload)
+            if (_apps.value != loaded) {
+                _apps.value = loaded
+            }
         }
     }
 

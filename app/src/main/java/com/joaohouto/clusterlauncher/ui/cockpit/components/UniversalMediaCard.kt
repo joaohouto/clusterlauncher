@@ -128,6 +128,10 @@ fun UniversalMediaCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val albumArtImage = remember(mediaState.albumArtBitmap) {
+                        mediaState.albumArtBitmap?.asImageBitmap()
+                    }
+
                     // Album Art (136dp x 136dp) with resilient fallback
                     Box(
                         modifier = Modifier
@@ -139,9 +143,9 @@ fun UniversalMediaCard(
                         contentAlignment = Alignment.Center
                     ) {
                         when {
-                            mediaState.albumArtBitmap != null -> {
+                            albumArtImage != null -> {
                                 Image(
-                                    bitmap = mediaState.albumArtBitmap!!.asImageBitmap(),
+                                    bitmap = albumArtImage,
                                     contentDescription = mediaState.title,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()

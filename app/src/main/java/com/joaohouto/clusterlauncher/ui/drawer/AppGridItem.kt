@@ -60,9 +60,10 @@ fun AppGridItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        if (app.icon != null) {
+        val imageBitmap = remember(app.icon) { app.icon?.asImageBitmap() }
+        if (imageBitmap != null) {
             Image(
-                bitmap = app.icon.asImageBitmap(),
+                bitmap = imageBitmap,
                 contentDescription = app.label,
                 modifier = Modifier
                     .size(92.dp)
