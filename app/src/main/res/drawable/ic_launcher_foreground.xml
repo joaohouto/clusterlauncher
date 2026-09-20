@@ -35,8 +35,13 @@
         android:strokeColor="#E61924"
         android:fillColor="#00000000" />
 
-    <!-- House Icon Group (Optically Centered) -->
-    <group android:translateY="-2.5">
+    <!-- House Icon Group (scaled ~1.2x around optical center, then re-centered) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="55"
+        android:scaleX="1.2"
+        android:scaleY="1.2"
+        android:translateY="-2.5">
         <!-- Home Button Drop Shadow -->
         <path
             android:pathData="M 53.1,45.1 C 53.6,44.6 54.4,44.6 54.9,45.1 L 65.8,55.0 C 66.4,55.5 66.1,56.4 65.3,56.4 H 63 C 62.4,56.4 62,56.8 62,57.4 V 65.7 C 62,66.3 61.5,66.7 61,66.7 H 56 C 55.4,66.7 55,66.3 55,65.7 V 59.7 C 55,59.1 54.6,58.7 54,58.7 C 53.4,58.7 53,59.1 53,59.7 V 65.7 C 53,66.3 52.6,66.7 52,66.7 H 47 C 46.5,66.7 46,66.3 46,65.7 V 57.4 C 46,56.8 45.6,56.4 45,56.4 H 42.7 C 41.9,56.4 41.6,55.5 42.2,55.0 Z"

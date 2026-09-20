@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cluster - Launcher e Player Automotivo para Android</title>
+    <meta
+      name="description"
+      content="Launcher de cockpit esportivo e player de música para centrais multimídia automotivas Android. 100% offline, relógio RTC, Quick Dock tátil de 5 slots e reprodução por pastas em pendrives USB."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="launcher.svg" />
+    <link rel="apple-touch-icon" href="launcher.svg" />
+    <style>
+      :root {
+        --bg-deep: #0b0c0e;
+        --bg-secondary: #121316;
+        --surface-card: #17181b;
+        --surface-card-hover: #1e2025;
+        --surface-border: #262930;
+        --metallic-intermediate: #2e323a;
+        --metallic-border: #3a3f47;
+        --needle-red: #e61924;
+        --needle-red-glow: rgba(230, 25, 36, 0.35);
+        --needle-red-dark: #b0121b;
+        --text-primary: #f2f2f0;
+        --text-secondary: #94979f;
+        --text-tertiary: #6b6e77;
+        --badge-bg: rgba(255, 255, 255, 0.06);
+        --badge-border: rgba(255, 255, 255, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg-deep);
+        color: var(--text-primary);
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.6;
+        overflow-x: hidden;
+        background-image:
+          radial-gradient(
+            circle at 20% -10%,
+            rgba(230, 25, 36, 0.08) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 80% 20%,
+            rgba(54, 58, 68, 0.15) 0%,
+            transparent 55%
+          ),
+          linear-gradient(to bottom, #111317 0%, var(--bg-deep) 100%);
+        min-height: 100vh;
+      }
+
+      /* Header */
+      header {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 24px 24px 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: var(--text-primary);
+      }
+
+      .brand-logo {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        background: #1c1e23;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .brand-logo img {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .brand-title-wrap {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .brand-name {
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+      }
+
+      .brand-name span {
+        color: var(--needle-red);
+      }
+
+      .brand-badge {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: var(--badge-bg);
+        border: 1px solid var(--badge-border);
+        color: var(--text-secondary);
+        font-weight: 600;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .nav-link {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 0.88rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        transition: color 0.15s;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+      }
+
+      /* Hero Section */
+      .hero {
+        max-width: 860px;
+        margin: 50px auto 70px;
+        padding: 0 24px;
+        text-align: left;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--needle-red);
+        background: rgba(230, 25, 36, 0.1);
+        border: 1px solid rgba(230, 25, 36, 0.3);
+        padding: 5px 12px;
+        border-radius: 20px;
+        margin-bottom: 20px;
+      }
+
+      .eyebrow::before {
+        content: "";
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background-color: var(--needle-red);
+        box-shadow: 0 0 8px var(--needle-red);
+      }
+
+      h1 {
+        font-size: clamp(2.3rem, 5.2vw, 3.5rem);
+        font-weight: 800;
+        line-height: 1.15;
+        margin-bottom: 22px;
+        letter-spacing: -0.5px;
+      }
+
+      h1 span.accent {
+        color: var(--needle-red);
+      }
+
+      .hero-sub {
+        max-width: 65ch;
+        color: var(--text-secondary);
+        font-size: 1.12rem;
+        line-height: 1.65;
+        margin-bottom: 34px;
+      }
+
+      .cta-container {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .btn-primary {
+        background: var(--needle-red);
+        color: #ffffff;
+        text-decoration: none;
+        padding: 14px 24px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1.02rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid #ff4d58;
+        box-shadow: 0 6px 20px rgba(230, 25, 36, 0.28);
+        transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+      }
+
+      .btn-primary:hover {
+        background: #cf1620;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(230, 25, 36, 0.38);
+      }
+
+      .btn-secondary {
+        background: var(--surface-card);
+        color: var(--text-primary);
+        text-decoration: none;
+        padding: 14px 22px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1.02rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--surface-border);
+        transition: transform 0.15s, background 0.15s, border-color 0.15s;
+      }
+
+      .btn-secondary:hover {
+        background: var(--metallic-intermediate);
+        border-color: var(--metallic-border);
+        transform: translateY(-2px);
+      }
+
+      .btn-badge {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+        letter-spacing: 0.5px;
+      }
+
+      .btn-secondary .btn-badge {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-secondary);
+      }
+
+      .release-notice {
+        font-size: 0.88rem;
+        color: var(--text-tertiary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .release-notice span.bullet {
+        color: var(--needle-red);
+      }
+
+      /* Apps Showcase Section */
+      .apps-section {
+        max-width: 1000px;
+        margin: 0 auto 80px;
+        padding: 0 24px;
+      }
+
+      .section-header {
+        margin-bottom: 30px;
+      }
+
+      .section-title {
+        font-size: 1.7rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        letter-spacing: -0.3px;
+      }
+
+      .section-intro {
+        color: var(--text-secondary);
+        font-size: 1.02rem;
+        max-width: 60ch;
+      }
+
+      .apps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+      }
+
+      .app-card {
+        background: var(--surface-card);
+        border: 1px solid var(--surface-border);
+        border-radius: 16px;
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.2s, transform 0.2s, background 0.2s;
+      }
+
+      .app-card:hover {
+        border-color: var(--metallic-border);
+        background: var(--surface-card-hover);
+        transform: translateY(-3px);
+      }
+
+      .app-card.featured {
+        border-color: rgba(230, 25, 36, 0.4);
+        background: linear-gradient(180deg, #1b1d22 0%, var(--surface-card) 100%);
+      }
+
+      .app-card.featured:hover {
+        border-color: rgba(230, 25, 36, 0.65);
+      }
+
+      .card-tag {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 4px 9px;
+        border-radius: 20px;
+        background: rgba(230, 25, 36, 0.15);
+        border: 1px solid rgba(230, 25, 36, 0.35);
+        color: #ff6b74;
+      }
+
+      .app-header {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .app-icon {
+        width: 68px;
+        height: 68px;
+        border-radius: 14px;
+        flex-shrink: 0;
+        overflow: hidden;
+        background: #111215;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--surface-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .app-icon img {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .app-title-area h3 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .badges-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .meta-badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: var(--badge-bg);
+        border: 1px solid var(--badge-border);
+        color: var(--text-secondary);
+      }
+
+      .meta-badge.highlight {
+        background: rgba(230, 25, 36, 0.12);
+        border-color: rgba(230, 25, 36, 0.3);
+        color: #ff858d;
+      }
+
+      .app-desc {
+        color: var(--text-secondary);
+        font-size: 0.96rem;
+        line-height: 1.6;
+        margin-bottom: 24px;
+      }
+
+      .card-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .btn-card-download {
+        background: var(--needle-red);
+        color: #ffffff;
+        text-decoration: none;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.96rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border: 1px solid #ff4d58;
+        transition: background 0.15s;
+      }
+
+      .btn-card-download:hover {
+        background: #cf1620;
+      }
+
+      .app-card:not(.featured) .btn-card-download {
+        background: var(--metallic-intermediate);
+        border-color: var(--metallic-border);
+      }
+
+      .app-card:not(.featured) .btn-card-download:hover {
+        background: #3e434f;
+      }
+
+      .btn-card-repo {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px;
+        transition: color 0.15s;
+      }
+
+      .btn-card-repo:hover {
+        color: var(--text-primary);
+      }
+
+      /* Features Grid */
+      .features {
+        max-width: 1000px;
+        margin: 0 auto 80px;
+        padding: 0 24px;
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+      }
+
+      .feature-box {
+        background: var(--surface-card);
+        border: 1px solid var(--surface-border);
+        border-radius: 12px;
+        padding: 24px;
+        transition: border-color 0.15s;
+      }
+
+      .feature-box:hover {
+        border-color: var(--metallic-border);
+      }
+
+      .feature-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: rgba(230, 25, 36, 0.1);
+        border: 1px solid rgba(230, 25, 36, 0.25);
+        color: var(--needle-red);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+      }
+
+      .feature-box h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: var(--text-primary);
+      }
+
+      .feature-box p {
+        color: var(--text-secondary);
+        font-size: 0.94rem;
+        line-height: 1.55;
+      }
+
+      /* Synergy Section */
+      .synergy-section {
+        max-width: 1000px;
+        margin: 0 auto 90px;
+        padding: 0 24px;
+      }
+
+      .synergy-card {
+        background: linear-gradient(135deg, #16181d 0%, #101215 100%);
+        border: 1px solid var(--metallic-border);
+        border-radius: 16px;
+        padding: 36px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+      }
+
+      .synergy-card h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+
+      .synergy-card p {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        line-height: 1.65;
+        max-width: 75ch;
+      }
+
+      .synergy-icons {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 6px;
+      }
+
+      .synergy-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        background: var(--surface-card);
+        border: 1px solid var(--surface-border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      .synergy-icon img {
+        width: 100%;
+        height: 100%;
+      }
+
+      .synergy-plus {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--needle-red);
+      }
+
+      /* Footer */
+      footer {
+        max-width: 1000px;
+        margin: 0 auto 50px;
+        padding: 28px 24px;
+        border-top: 1px solid var(--surface-border);
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+
+      footer a {
+        color: var(--text-primary);
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: var(--needle-red);
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 20px;
+      }
+
+      @media (max-width: 768px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .nav-links {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        .cta-container {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .btn-primary, .btn-secondary {
+          justify-content: center;
+        }
+
+        footer {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <header>
+      <a href="#" class="brand">
+        <div class="brand-logo">
+          <img src="launcher.svg" alt="Cluster Logo" />
+        </div>
+        <div class="brand-title-wrap">
+          <div class="brand-name">Cluster<span>.</span></div>
+          <span class="brand-badge">Automotive Suite</span>
+        </div>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#apps" class="nav-link">Aplicativos</a>
+        <a href="#recursos" class="nav-link">Recursos</a>
+        <a
+          href="https://github.com/joaohouto/clusterlauncher"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="nav-link"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+            />
+          </svg>
+          GitHub
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero Section -->
+      <section class="hero">
+        <div class="eyebrow">Suite Automotiva • 100% Offline</div>
+        <h1>
+          O launcher definitivo para <span class="accent">multimídias</span> Android
+        </h1>
+
+        <p class="hero-sub">
+          Interface de cockpit inspirada em mostradores esportivos. Relógio RTC de bordo, 
+          mini player desacoplado universal, Quick Dock tátil de 5 slots com ZLINK5 e 
+          gaveta de aplicativos ultrarrápida sem travamentos.
+        </p>
+
+        <div class="cta-container">
+          <!-- Botão Principal: Cluster Launcher APK Direto -->
+          <a
+            href="https://github.com/joaohouto/clusterlauncher/releases/download/v1.0.1/ClusterLauncher-v1.0.1.apk"
+            class="btn-primary"
+            id="launcher-hero-btn"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Baixar Cluster Launcher</span>
+            <span class="btn-badge" id="launcher-hero-badge">v1.0.1 • 1.65 MB</span>
+          </a>
+
+          <!-- Botão Secundário: Cluster Player APK Direto -->
+          <a
+            href="https://github.com/joaohouto/clusterplayer/releases/download/v1.1.2/ClusterPlayer-v1.1.2.apk"
+            class="btn-secondary"
+            id="player-hero-btn"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            <span>Baixar Cluster Player</span>
+            <span class="btn-badge" id="player-hero-badge">v1.1.2 • 3.47 MB</span>
+          </a>
+        </div>
+
+        <p class="release-notice">
+          Android 7.0 (API 24) até o Android 15
+          <span class="bullet">•</span>
+          Otimizado para Cortex-A7/A53 e 1GB/2GB RAM
+          <span class="bullet">•</span>
+          Sem anúncios ou telemetria
+        </p>
+      </section>
+
+      <!-- Apps Showcase Grid -->
+      <section class="apps-section" id="apps">
+        <div class="section-header">
+          <h2 class="section-title">Aplicativos do Projeto</h2>
+          <p class="section-intro">
+            Softwares desenhados sob medida para o ambiente veicular, com foco em estabilidade, ergonomia e toque seguro em movimento.
+          </p>
+        </div>
+
+        <div class="apps-grid">
+          <!-- Card Cluster Launcher -->
+          <div class="app-card featured">
+            <span class="card-tag">Principal</span>
+            <div class="app-header">
+              <div class="app-icon">
+                <img src="launcher.svg" alt="Cluster Launcher Icon" />
+              </div>
+              <div class="app-title-area">
+                <h3>Cluster Launcher</h3>
+                <div class="badges-row">
+                  <span class="meta-badge highlight" id="launcher-card-ver">v1.0.1</span>
+                  <span class="meta-badge" id="launcher-card-size">1.65 MB</span>
+                  <span class="meta-badge">Home App</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="app-desc">
+              Painel de cockpit com relógio RTC de alta precisão, horizonte luminoso, seleção do logotipo da montadora (Toyota, Fiat, Ford, Honda, etc.), mini player universal, indicadores de USB/Bluetooth e Quick Dock tátil de 5 botões largos.
+            </p>
+
+            <div class="card-actions">
+              <a
+                href="https://github.com/joaohouto/clusterlauncher/releases/download/v1.0.1/ClusterLauncher-v1.0.1.apk"
+                class="btn-card-download"
+                id="launcher-card-download"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span id="launcher-card-btn-text">Baixar Launcher APK (v1.0.1)</span>
+              </a>
+              <a
+                href="https://github.com/joaohouto/clusterlauncher"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn-card-repo"
+              >
+                Ver código no GitHub &rarr;
+              </a>
+            </div>
+          </div>
+
+          <!-- Card Cluster Player -->
+          <div class="app-card">
+            <div class="app-header">
+              <div class="app-icon">
+                <img src="player.svg" alt="Cluster Player Icon" />
+              </div>
+              <div class="app-title-area">
+                <h3>Cluster Player</h3>
+                <div class="badges-row">
+                  <span class="meta-badge highlight" id="player-card-ver">v1.1.2</span>
+                  <span class="meta-badge" id="player-card-size">3.47 MB</span>
+                  <span class="meta-badge">Música USB</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="app-desc">
+              Reprodutor de música local para pendrives USB. Usa a estrutura de pastas físicas como playlists sem depender de tags ID3, retoma a música exatamente onde parou pós-ignição e possui botões gigantes de alto contraste para condução segura.
+            </p>
+
+            <div class="card-actions">
+              <a
+                href="https://github.com/joaohouto/clusterplayer/releases/download/v1.1.2/ClusterPlayer-v1.1.2.apk"
+                class="btn-card-download"
+                id="player-card-download"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span id="player-card-btn-text">Baixar Player APK (v1.1.2)</span>
+              </a>
+              <a
+                href="https://github.com/joaohouto/clusterplayer"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn-card-repo"
+              >
+                Ver código no GitHub &rarr;
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recursos do Cluster Launcher -->
+      <section class="features" id="recursos">
+        <div class="section-header">
+          <h2 class="section-title">Recursos do Cluster Launcher</h2>
+          <p class="section-intro">
+            Engenharia pensada especificamente para as limitações de hardware e exigências visuais das multimídias de painel.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <div class="feature-box">
+            <div class="feature-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="m4.93 4.93 4.24 4.24" />
+                <path d="m14.83 9.17 4.24-4.24" />
+                <path d="m14.83 14.83 4.24 4.24" />
+                <path d="m9.17 14.83-4.24 4.24" />
+                <circle cx="12" cy="12" r="4" />
+              </svg>
+            </div>
+            <h3>Emblema Customizável</h3>
+            <p>
+              Escolha com um simples toque o logo da montadora do seu carro (Toyota, Fiat, Ford, Honda, Audi, BMW, VW, etc.) renderizado em vetor metálico escovado com horizonte luminoso.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+            </div>
+            <h3>Mini Player Desacoplado</h3>
+            <p>
+              Intercepta sessões ativas do Android via MediaSession. Comande o Cluster Player, Spotify, YouTube Music ou rádio nativo diretamente da Home com capa e metadados.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M3 9h18" />
+                <path d="M9 21V9" />
+              </svg>
+            </div>
+            <h3>Quick Dock de 5 Slots</h3>
+            <p>
+              Área de toque ampla (64x64 dp) para acionamento rápido e seguro em movimento: Música, Navegação GPS, Rádio FM, ZLINK5 (Android Auto/CarPlay) e Configurações.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v20" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
+            <h3>Botão Launcher Padrão</h3>
+            <p>
+              Identifica se o app é a tela inicial padrão do sistema. Se não for, exibe um botão de atalho inteligente que guia a configuração e desaparece sozinho após o ajuste.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="7" height="7" x="3" y="3" rx="1" />
+                <rect width="7" height="7" x="14" y="3" rx="1" />
+                <rect width="7" height="7" x="14" y="14" rx="1" />
+                <rect width="7" height="7" x="3" y="14" rx="1" />
+              </svg>
+            </div>
+            <h3>Gaveta Paginada sem Jank</h3>
+            <p>
+              Grade de aplicativos organizada em slides horizontais de 10 apps, com cache inteligente em memória. Zero leituras repetitivas no eMMC ao retornar para a Home.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-box">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+            </div>
+            <h3>Otimizado para Cortex-A7</h3>
+            <p>
+              Minificação R8 reduz o APK a apenas 1.65 MB. Inicialização a frio 100% escura (#0B0C0E) sem flash branco, uso de RGB_565 e consumo mínimo de memória RAM.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sinergia entre os Apps -->
+      <section class="synergy-section">
+        <div class="synergy-card">
+          <div class="synergy-icons">
+            <div class="synergy-icon">
+              <img src="launcher.svg" alt="Launcher" />
+            </div>
+            <div class="synergy-plus">+</div>
+            <div class="synergy-icon">
+              <img src="player.svg" alt="Player" />
+            </div>
+          </div>
+          <h2>Sinergia Perfeita: Launcher + Player</h2>
+          <p>
+            Enquanto o <strong>Cluster Player</strong> gerencia seus pendrives USB e pastas físicas em segundo plano sem engasgos, o <strong>Cluster Launcher</strong> o assume no Slot 1 da Quick Dock e no Widget de Mídia. A dupla perfeita para quem quer um cockpit automotivo moderno, limpo e independente de internet.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <p>
+        Cluster Automotive Suite &bull; Desenvolvido por
+        <a
+          href="https://github.com/joaohouto"
+          target="_blank"
+          rel="noopener noreferrer"
+          >João Couto</a
+        >
+      </p>
+      <div class="footer-links">
+        <a
+          href="https://github.com/joaohouto/clusterlauncher"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub Launcher</a
+        >
+        <a
+          href="https://github.com/joaohouto/clusterplayer"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub Player</a
+        >
+      </div>
+    </footer>
+
+    <!-- Script de Download Dinâmico Sempre Atualizado -->
+    <script>
+      (function () {
+        function formatBytes(bytes) {
+          if (!bytes || bytes === 0) return "";
+          var mb = bytes / (1024 * 1024);
+          return mb.toFixed(2) + " MB";
+        }
+
+        // 1. Atualiza Cluster Launcher com a release mais recente
+        fetch("https://api.github.com/repos/joaohouto/clusterlauncher/releases/latest")
+          .then(function (res) {
+            if (!res.ok) throw new Error("Status " + res.status);
+            return res.json();
+          })
+          .then(function (data) {
+            if (!data || !data.assets) return;
+            var apkAsset = data.assets.find(function (a) {
+              return a.name && a.name.endsWith(".apk");
+            });
+
+            if (apkAsset && apkAsset.browser_download_url) {
+              var downloadUrl = apkAsset.browser_download_url;
+              var sizeText = formatBytes(apkAsset.size);
+              var ver = data.tag_name || "v1.0.1";
+
+              // Atualiza o botão do Hero
+              var heroBtn = document.getElementById("launcher-hero-btn");
+              if (heroBtn) heroBtn.href = downloadUrl;
+
+              var heroBadge = document.getElementById("launcher-hero-badge");
+              if (heroBadge) {
+                heroBadge.textContent = ver + (sizeText ? " • " + sizeText : "");
+              }
+
+              // Atualiza o card de apps
+              var cardDownload = document.getElementById("launcher-card-download");
+              if (cardDownload) cardDownload.href = downloadUrl;
+
+              var cardBtnText = document.getElementById("launcher-card-btn-text");
+              if (cardBtnText) cardBtnText.textContent = "Baixar Launcher APK (" + ver + ")";
+
+              var cardVer = document.getElementById("launcher-card-ver");
+              if (cardVer) cardVer.textContent = ver;
+
+              var cardSize = document.getElementById("launcher-card-size");
+              if (cardSize && sizeText) cardSize.textContent = sizeText;
+            }
+          })
+          .catch(function (err) {
+            console.log("Usando URLs estáticas de fallback para o Cluster Launcher");
+          });
+
+        // 2. Atualiza Cluster Player com a release mais recente
+        fetch("https://api.github.com/repos/joaohouto/clusterplayer/releases/latest")
+          .then(function (res) {
+            if (!res.ok) throw new Error("Status " + res.status);
+            return res.json();
+          })
+          .then(function (data) {
+            if (!data || !data.assets) return;
+            var apkAsset = data.assets.find(function (a) {
+              return a.name && a.name.endsWith(".apk");
+            });
+
+            if (apkAsset && apkAsset.browser_download_url) {
+              var downloadUrl = apkAsset.browser_download_url;
+              var sizeText = formatBytes(apkAsset.size);
+              var ver = data.tag_name || "v1.1.2";
+
+              // Atualiza o botão do Hero
+              var heroBtn = document.getElementById("player-hero-btn");
+              if (heroBtn) heroBtn.href = downloadUrl;
+
+              var heroBadge = document.getElementById("player-hero-badge");
+              if (heroBadge) {
+                heroBadge.textContent = ver + (sizeText ? " • " + sizeText : "");
+              }
+
+              // Atualiza o card de apps
+              var cardDownload = document.getElementById("player-card-download");
+              if (cardDownload) cardDownload.href = downloadUrl;
+
+              var cardBtnText = document.getElementById("player-card-btn-text");
+              if (cardBtnText) cardBtnText.textContent = "Baixar Player APK (" + ver + ")";
+
+              var cardVer = document.getElementById("player-card-ver");
+              if (cardVer) cardVer.textContent = ver;
+
+              var cardSize = document.getElementById("player-card-size");
+              if (cardSize && sizeText) cardSize.textContent = sizeText;
+            }
+          })
+          .catch(function (err) {
+            console.log("Usando URLs estáticas de fallback para o Cluster Player");
+          });
+      })();
+    </script>
+  </body>
+</html>
