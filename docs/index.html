@@ -699,7 +699,7 @@
                 <h3>Cluster Launcher</h3>
                 <div class="badges-row">
                   <span class="meta-badge highlight" id="launcher-card-ver"
-                    >v1.0.1</span
+                    >v1.1.0</span
                   >
                   <span class="meta-badge" id="launcher-card-size"
                     >1.65 MB</span
@@ -710,15 +710,14 @@
             </div>
 
             <p class="app-desc">
-              Painel de cockpit com relógio RTC de alta precisão, horizonte
-              luminoso, seleção do logotipo da montadora (Toyota, Fiat, Ford,
-              Honda, etc.), mini player universal, indicadores de USB/Bluetooth
-              e Quick Dock tátil de 5 botões largos.
+              Painel de cockpit com mapa offline nativo (MBTiles), telemetria
+              GPS integrada, relógio RTC de alta precisão, horizonte luminoso,
+              seleção de montadoras, mini player universal e Quick Dock de 5 slots.
             </p>
 
             <div class="card-actions">
               <a
-                href="https://github.com/joaohouto/clusterlauncher/releases/download/v1.0.1/ClusterLauncher-v1.0.1.apk"
+                href="https://github.com/joaohouto/clusterlauncher/releases/download/v1.1.0/ClusterLauncher-v1.1.0.apk"
                 class="btn-card-download"
                 id="launcher-card-download"
               >
@@ -737,7 +736,7 @@
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 <span id="launcher-card-btn-text"
-                  >Baixar Launcher APK (v1.0.1)</span
+                  >Baixar Launcher APK (v1.1.0)</span
                 >
               </a>
               <a
@@ -1052,7 +1051,7 @@
             if (apkAsset && apkAsset.browser_download_url) {
               var downloadUrl = apkAsset.browser_download_url;
               var sizeText = formatBytes(apkAsset.size);
-              var ver = data.tag_name || "v1.0.1";
+              var ver = data.tag_name || "v1.1.0";
 
               // Atualiza o botão do Hero
               var heroBtn = document.getElementById("launcher-hero-btn");

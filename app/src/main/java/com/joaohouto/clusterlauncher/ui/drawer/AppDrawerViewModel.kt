@@ -45,6 +45,32 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    val showMapOnHome: StateFlow<Boolean> = dockPreferences.getShowMapOnHomeFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
+
+    fun setShowMapOnHome(show: Boolean) {
+        viewModelScope.launch {
+            dockPreferences.setShowMapOnHome(show)
+        }
+    }
+
+    val mapDarkMode: StateFlow<Boolean> = dockPreferences.getMapDarkModeFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    fun setMapDarkMode(isDark: Boolean) {
+        viewModelScope.launch {
+            dockPreferences.setMapDarkMode(isDark)
+        }
+    }
+
     init {
         loadApps()
     }

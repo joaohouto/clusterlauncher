@@ -44,6 +44,7 @@ import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.media.NotificationListenerHelper
 import com.joaohouto.clusterlauncher.ui.cockpit.CockpitScreen
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.CarBrandPickerModal
+import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.LauncherSettingsModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.SlotAppPickerModal
 import com.joaohouto.clusterlauncher.ui.drawer.AppDrawerViewModel
 import com.joaohouto.clusterlauncher.ui.drawer.AppSlideScreen
@@ -86,6 +87,15 @@ class MainActivity : ComponentActivity() {
         MediaManager.setPermissionGranted(hasPermission)
         appDrawerViewModel.loadApps()
         com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper.updateDefaultLauncherState(this)
+        com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.checkPermission(this)
+        if (com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.hasPermission.value) {
+            com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.startListening(this)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.stopListening()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -107,6 +117,8 @@ private fun LauncherMainContent(
     val apps by viewModel.apps.collectAsState()
     val dockSlots by viewModel.dockSlots.collectAsState()
     val selectedCarBrand by viewModel.carBrand.collectAsState()
+    val showMapOnHome by viewModel.showMapOnHome.collectAsState()
+    val mapDarkMode by viewModel.mapDarkMode.collectAsState()
 
     val appSlides = remember(apps) {
         if (apps.isEmpty()) listOf(emptyList()) else apps.chunked(10)
@@ -118,6 +130,7 @@ private fun LauncherMainContent(
 
     var activeSlotForPicker by remember { mutableStateOf<DockSlot?>(null) }
     var showBrandPicker by remember { mutableStateOf(false) }
+    var showSettingsModal by remember { mutableStateOf(false) }
 
     // React to Home button or onNewIntent
     LaunchedEffect(scrollToCockpitTrigger) {
@@ -149,7 +162,10 @@ private fun LauncherMainContent(
                     dockSlots = dockSlots,
                     selectedCarBrand = selectedCarBrand,
                     onSlotLongClick = { slot -> activeSlotForPicker = slot },
-                    onBrandClick = { showBrandPicker = true }
+                    onBrandClick = { showBrandPicker = true },
+                    onSettingsClick = { showSettingsModal = true },
+                    showMapOnHome = showMapOnHome,
+                    isMapDarkMode = mapDarkMode
                 )
             } else {
                 val slideIndex = page - 1
@@ -215,6 +231,21 @@ private fun LauncherMainContent(
                     showBrandPicker = false
                 },
                 onDismiss = { showBrandPicker = false }
+            )
+        }
+
+        if (showSettingsModal) {
+            LauncherSettingsModal(
+                selectedBrand = selectedCarBrand,
+                showMapOnHome = showMapOnHome,
+                onToggleShowMap = { viewModel.setShowMapOnHome(it) },
+                isMapDarkMode = mapDarkMode,
+                onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
+                onSelectBrandClick = {
+                    showSettingsModal = false
+                    showBrandPicker = true
+                },
+                onDismiss = { showSettingsModal = false }
             )
         }
     }

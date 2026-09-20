@@ -49,4 +49,32 @@ class DockPreferences(private val context: Context) {
             preferences[CAR_BRAND_KEY] = brandId
         }
     }
+
+    private val SHOW_MAP_ON_HOME_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("show_map_on_home")
+
+    fun getShowMapOnHomeFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[SHOW_MAP_ON_HOME_KEY] ?: true
+        }
+    }
+
+    suspend fun setShowMapOnHome(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_MAP_ON_HOME_KEY] = show
+        }
+    }
+
+    private val MAP_DARK_MODE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("map_dark_mode")
+
+    fun getMapDarkModeFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[MAP_DARK_MODE_KEY] ?: false
+        }
+    }
+
+    suspend fun setMapDarkMode(isDark: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[MAP_DARK_MODE_KEY] = isDark
+        }
+    }
 }

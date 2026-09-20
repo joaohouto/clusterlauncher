@@ -14,7 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BluetoothConnected
-import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -39,43 +39,40 @@ import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextDisabled
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
-import com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SystemStatusRow(
     modifier: Modifier = Modifier,
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    onSettingsClick: () -> Unit = {}
 ) {
     val isUsbConnected by UsbStateReceiver.isUsbConnected.collectAsState()
     val isBluetoothConnected by BluetoothStateReceiver.isBluetoothConnected.collectAsState()
-    val isDefaultLauncher by DefaultLauncherHelper.isDefaultLauncher.collectAsState()
-    val context = LocalContext.current
 
-    Row(
+    FlowRow(
         modifier = modifier,
-        horizontalArrangement = horizontalArrangement,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         StatusBadge(
             icon = Icons.Rounded.Usb,
             label = if (isUsbConnected) stringResource(R.string.usb_connected) else stringResource(R.string.usb_disconnected),
             isActive = isUsbConnected
         )
-        Spacer(modifier = Modifier.width(16.dp))
         StatusBadge(
             icon = if (isBluetoothConnected) Icons.Rounded.BluetoothConnected else Icons.Rounded.Bluetooth,
             label = if (isBluetoothConnected) stringResource(R.string.bluetooth_connected) else stringResource(R.string.bluetooth_disconnected),
             isActive = isBluetoothConnected
         )
-
-        if (!isDefaultLauncher) {
-            Spacer(modifier = Modifier.width(16.dp))
-            ActionBadge(
-                icon = Icons.Rounded.Home,
-                label = stringResource(R.string.set_as_default_launcher),
-                onClick = { DefaultLauncherHelper.requestSetDefaultLauncher(context) }
-            )
-        }
+        ActionBadge(
+            icon = Icons.Rounded.Settings,
+            label = stringResource(R.string.settings),
+            onClick = onSettingsClick
+        )
     }
 }
 

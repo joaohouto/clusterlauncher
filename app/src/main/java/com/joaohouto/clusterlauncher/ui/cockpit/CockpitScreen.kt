@@ -18,6 +18,7 @@ import com.joaohouto.clusterlauncher.data.model.CarBrand
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.ui.cockpit.components.CarBrandEmblem
 import com.joaohouto.clusterlauncher.ui.cockpit.components.ClockWidget
+import com.joaohouto.clusterlauncher.ui.cockpit.components.OfflineMapCard
 import com.joaohouto.clusterlauncher.ui.cockpit.components.QuickDockBar
 import com.joaohouto.clusterlauncher.ui.cockpit.components.SystemStatusRow
 import com.joaohouto.clusterlauncher.ui.cockpit.components.UniversalMediaCard
@@ -28,12 +29,15 @@ fun CockpitScreen(
     selectedCarBrand: CarBrand,
     onSlotLongClick: (DockSlot) -> Unit,
     onBrandClick: () -> Unit,
+    onSettingsClick: () -> Unit = {},
+    showMapOnHome: Boolean = true,
+    isMapDarkMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         // Top Section: Instrument Cluster (45%) on Left, Media Player (55%) on Right
@@ -65,25 +69,39 @@ fun CockpitScreen(
 
             Spacer(modifier = Modifier.width(20.dp))
 
-            // Right: Universal Media Widget and Peripheral Status (55%)
+            // Right: Offline Map, Universal Media Widget and Peripheral Status (55%)
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .weight(0.55f),
+                    .weight(0.55f)
+                    .padding(vertical = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                if (showMapOnHome) {
+                    OfflineMapCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 100.dp)
+                            .weight(1f),
+                        isDarkMode = isMapDarkMode
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
                 UniversalMediaCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(end = 100.dp)
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 SystemStatusRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start
+                    horizontalArrangement = Arrangement.Start,
+                    onSettingsClick = onSettingsClick
                 )
             }
         }

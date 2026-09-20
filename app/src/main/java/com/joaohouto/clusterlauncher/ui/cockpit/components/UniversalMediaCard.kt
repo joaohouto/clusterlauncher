@@ -177,7 +177,7 @@ fun UniversalMediaCard(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = if (mediaState.title.isNotEmpty()) mediaState.title else stringResource(R.string.no_media_playing),
+                            text = mediaState.title,
                             color = TextPrimary,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
