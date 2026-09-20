@@ -11,11 +11,13 @@ android {
         applicationId = "com.joaohouto.clusterlauncher"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+
+
 
     buildTypes {
         release {
@@ -64,4 +66,20 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+project.afterEvaluate {
+    tasks.matching { it.name.startsWith("assemble") }.configureEach {
+        doLast {
+            val isRelease = name.contains("Release", ignoreCase = true)
+            val subfolder = if (isRelease) "release" else "debug"
+            val apkDir = layout.buildDirectory.dir("outputs/apk/$subfolder").orNull?.asFile ?: return@doLast
+            val defaultApk = File(apkDir, if (isRelease) "app-release.apk" else "app-debug.apk")
+            val targetApk = File(apkDir, if (isRelease) "ClusterLauncher-v${android.defaultConfig.versionName}.apk" else "ClusterLauncher-v${android.defaultConfig.versionName}-debug.apk")
+            if (defaultApk.exists()) {
+                defaultApk.copyTo(targetApk, overwrite = true)
+                println("APK generated: ${targetApk.name}")
+            }
+        }
+    }
 }
