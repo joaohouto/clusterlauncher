@@ -71,6 +71,19 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    val accentThemeId: StateFlow<String> = dockPreferences.getAccentThemeFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = "needle_red"
+        )
+
+    fun selectAccentTheme(themeId: String) {
+        viewModelScope.launch {
+            dockPreferences.setAccentTheme(themeId)
+        }
+    }
+
     init {
         loadApps()
     }

@@ -32,9 +32,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRedDark
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
@@ -62,10 +61,12 @@ fun MetallicButton(
     textSize: TextUnit = 14.sp,
     contentDescription: String? = null
 ) {
-    val backgroundBrush = remember(style, isActive) {
+    val accent = LocalClusterAccent.current
+
+    val backgroundBrush = remember(style, isActive, accent) {
         when (style) {
             MetallicButtonStyle.Accent -> Brush.verticalGradient(
-                colors = listOf(NeedleRed, NeedleRedDark)
+                colors = listOf(accent.primary, accent.dark)
             )
             MetallicButtonStyle.Standard -> if (isActive) {
                 Brush.verticalGradient(listOf(MetallicIntermediate, SurfaceCard))
@@ -78,16 +79,16 @@ fun MetallicButton(
         }
     }
 
-    val borderStroke = remember(style, isActive) {
+    val borderStroke = remember(style, isActive, accent) {
         when {
-            isActive -> BorderStroke(1.5.dp, NeedleRed)
-            style == MetallicButtonStyle.Accent -> BorderStroke(1.dp, NeedleRed.copy(alpha = 0.8f))
+            isActive -> BorderStroke(1.5.dp, accent.primary)
+            style == MetallicButtonStyle.Accent -> BorderStroke(1.dp, accent.primary.copy(alpha = 0.8f))
             else -> BorderStroke(1.dp, SurfaceCardBorder)
         }
     }
 
     val contentColor = when {
-        isActive -> NeedleRed
+        isActive -> accent.primary
         style == MetallicButtonStyle.Accent -> TextPrimary
         else -> TextPrimary
     }
@@ -98,7 +99,7 @@ fun MetallicButton(
             .clip(ButtonShape)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(color = if (style == MetallicButtonStyle.Accent) Color.White else NeedleRed),
+                indication = rememberRipple(color = if (style == MetallicButtonStyle.Accent) Color.White else accent.primary),
                 onClick = onClick,
                 onLongClick = onLongClick
             ),

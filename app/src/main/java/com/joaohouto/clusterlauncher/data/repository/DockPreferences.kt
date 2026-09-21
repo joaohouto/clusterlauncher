@@ -77,4 +77,18 @@ class DockPreferences(private val context: Context) {
             preferences[MAP_DARK_MODE_KEY] = isDark
         }
     }
+
+    private val ACCENT_THEME_KEY = stringPreferencesKey("accent_theme_id")
+
+    fun getAccentThemeFlow(): Flow<String> {
+        return context.dataStore.data.map { preferences ->
+            preferences[ACCENT_THEME_KEY] ?: "needle_red"
+        }
+    }
+
+    suspend fun setAccentTheme(themeId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ACCENT_THEME_KEY] = themeId
+        }
+    }
 }

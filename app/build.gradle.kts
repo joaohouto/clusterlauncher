@@ -11,8 +11,8 @@ android {
         applicationId = "com.joaohouto.clusterlauncher"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.1.0"
+        versionCode = 4
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -59,6 +59,12 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+
+    // Osmdroid para mapas offline e MBTiles nativos
+    implementation(libs.osmdroid.android)
+
+    // MapLibre Native para mapas vetoriais PBF offline
+    implementation(libs.maplibre.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

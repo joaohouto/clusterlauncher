@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BluetoothConnected
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,8 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
-import com.joaohouto.clusterlauncher.data.receiver.UsbStateReceiver
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextDisabled
@@ -47,22 +45,16 @@ import androidx.compose.foundation.layout.FlowRow
 @Composable
 fun SystemStatusRow(
     modifier: Modifier = Modifier,
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
     onSettingsClick: () -> Unit = {}
 ) {
-    val isUsbConnected by UsbStateReceiver.isUsbConnected.collectAsState()
     val isBluetoothConnected by BluetoothStateReceiver.isBluetoothConnected.collectAsState()
 
     FlowRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = horizontalArrangement,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        StatusBadge(
-            icon = Icons.Rounded.Usb,
-            label = if (isUsbConnected) stringResource(R.string.usb_connected) else stringResource(R.string.usb_disconnected),
-            isActive = isUsbConnected
-        )
         StatusBadge(
             icon = if (isBluetoothConnected) Icons.Rounded.BluetoothConnected else Icons.Rounded.Bluetooth,
             label = if (isBluetoothConnected) stringResource(R.string.bluetooth_connected) else stringResource(R.string.bluetooth_disconnected),
@@ -83,7 +75,8 @@ private fun StatusBadge(
     isActive: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val tint = if (isActive) NeedleRed else TextDisabled
+    val accent = LocalClusterAccent.current.primary
+    val tint = if (isActive) accent else TextDisabled
     val textColor = if (isActive) TextPrimary else TextDisabled
 
     Row(
@@ -117,11 +110,13 @@ private fun ActionBadge(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val accent = LocalClusterAccent.current.primary
+
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
             .background(SurfaceCard)
-            .border(1.dp, NeedleRed.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+            .border(1.dp, accent.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -129,7 +124,7 @@ private fun ActionBadge(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = NeedleRed,
+            tint = accent,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))

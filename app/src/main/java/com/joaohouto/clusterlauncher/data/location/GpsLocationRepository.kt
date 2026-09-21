@@ -36,10 +36,22 @@ object GpsLocationRepository {
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             val current = _locationState.value
-            val speedKmh = if (location.hasSpeed()) (location.speed * 3.6f) else 0f
-            // Se o veículo estiver em movimento ou reportando bearing, atualiza; senão, mantém o último bearing
-            val newBearing = if (location.hasBearing() && location.bearing != 0f) {
-                location.bearing
+            val rawSpeedKmh = if (location.hasSpeed()) (location.speed * 3.6f) else 0f
+            // Filtra oscilação mínima de GPS estático (abaixo de 2.0 km/h o carro está essencialmente parado)
+            val speedKmh = if (rawSpeedKmh >= 2.0f) rawSpeedKmh else 0f
+
+            // Atualiza o rumo (bearing) somente se o veículo estiver em deslocamento real (>= 3.0 km/h).
+            // Com o carro parado, o chip de GPS gera ruído aleatório de azimute; mantemos o último rumo fixo.
+            val newBearing = if (speedKmh >= 3.0f && location.hasBearing() && location.bearing != 0f) {
+                val target = location.bearing
+                var diff = (target - current.bearing) % 360f
+                if (diff > 180f) diff -= 360f
+                if (diff < -180f) diff += 360f
+                if (kotlin.math.abs(diff) < 2.5f) {
+                    current.bearing
+                } else {
+                    (current.bearing + diff * 0.35f + 360f) % 360f
+                }
             } else {
                 current.bearing
             }

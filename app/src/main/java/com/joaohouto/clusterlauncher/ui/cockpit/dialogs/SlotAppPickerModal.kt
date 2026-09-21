@@ -43,7 +43,7 @@ import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.model.AppItem
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
@@ -88,7 +88,7 @@ fun SlotAppPickerModal(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Slot: ${stringResource(slotType.defaultTitleRes)}",
-                            color = NeedleRed,
+                            color = LocalClusterAccent.current.primary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )

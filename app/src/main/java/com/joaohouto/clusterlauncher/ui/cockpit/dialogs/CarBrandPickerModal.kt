@@ -45,7 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.joaohouto.clusterlauncher.data.model.CarBrand
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
@@ -140,7 +140,8 @@ private fun BrandPickerCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) NeedleRed else SurfaceCardBorder
+    val accent = LocalClusterAccent.current.primary
+    val borderColor = if (isSelected) accent else SurfaceCardBorder
     val borderWidth = if (isSelected) 2.dp else 1.dp
 
     Column(
@@ -182,7 +183,7 @@ private fun BrandPickerCard(
 
         Text(
             text = brand.name,
-            color = if (isSelected) NeedleRed else TextPrimary,
+            color = if (isSelected) accent else TextPrimary,
             fontSize = 13.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             textAlign = TextAlign.Center,

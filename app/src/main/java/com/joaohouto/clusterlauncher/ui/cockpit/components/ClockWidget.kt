@@ -58,7 +58,7 @@ fun ClockWidget(
         Text(
             text = formattedTime,
             color = TextPrimary,
-            fontSize = 72.sp,
+            fontSize = 96.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
             letterSpacing = 1.5.sp
@@ -70,10 +70,11 @@ fun ClockWidget(
             fontWeight = FontWeight.SemiBold
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         CockpitHorizonDivider(
-            width = 340.dp
+            width = 420.dp,
+            height = 36.dp
         )
     }
 }

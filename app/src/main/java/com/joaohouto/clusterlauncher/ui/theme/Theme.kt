@@ -9,6 +9,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+
 private val AutomotiveColorScheme = darkColorScheme(
     primary = NeedleRed,
     onPrimary = TextPrimary,
@@ -27,6 +30,7 @@ private val AutomotiveColorScheme = darkColorScheme(
 
 @Composable
 fun ClusterLauncherTheme(
+    accentTheme: ClusterAccent = AccentNeedleRed,
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
@@ -42,9 +46,18 @@ fun ClusterLauncherTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = AutomotiveColorScheme,
-        typography = Typography,
-        content = content
-    )
+    val colorScheme = remember(accentTheme) {
+        AutomotiveColorScheme.copy(
+            primary = accentTheme.primary,
+            primaryContainer = accentTheme.dark
+        )
+    }
+
+    CompositionLocalProvider(LocalClusterAccent provides accentTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

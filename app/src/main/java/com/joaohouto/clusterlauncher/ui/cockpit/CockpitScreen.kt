@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -22,6 +26,7 @@ import com.joaohouto.clusterlauncher.ui.cockpit.components.OfflineMapCard
 import com.joaohouto.clusterlauncher.ui.cockpit.components.QuickDockBar
 import com.joaohouto.clusterlauncher.ui.cockpit.components.SystemStatusRow
 import com.joaohouto.clusterlauncher.ui.cockpit.components.UniversalMediaCard
+import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.FullScreenMapModal
 
 @Composable
 fun CockpitScreen(
@@ -32,8 +37,11 @@ fun CockpitScreen(
     onSettingsClick: () -> Unit = {},
     showMapOnHome: Boolean = true,
     isMapDarkMode: Boolean = false,
+    onToggleMapDarkMode: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var showFullScreenMap by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -48,7 +56,7 @@ fun CockpitScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left: Instrument Panel (Brand Logo + Clock) (45%)
+            // Left: Instrument Panel (Brand Logo + Clock + Horizon + Badges) (45%)
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -62,19 +70,27 @@ fun CockpitScreen(
                     size = 100.dp
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 ClockWidget()
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SystemStatusRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    onSettingsClick = onSettingsClick
+                )
             }
 
             Spacer(modifier = Modifier.width(20.dp))
 
-            // Right: Offline Map, Universal Media Widget and Peripheral Status (55%)
+            // Right: Offline Map and Universal Media Widget (55%)
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
                     .weight(0.55f)
-                    .padding(vertical = 32.dp),
+                    .padding(vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -82,26 +98,16 @@ fun CockpitScreen(
                     OfflineMapCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(end = 100.dp)
                             .weight(1f),
-                        isDarkMode = isMapDarkMode
+                        isDarkMode = isMapDarkMode,
+                        onMapClick = { showFullScreenMap = true }
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
                 }
 
                 UniversalMediaCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(end = 100.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                SystemStatusRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
-                    onSettingsClick = onSettingsClick
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -112,6 +118,14 @@ fun CockpitScreen(
         QuickDockBar(
             slots = dockSlots,
             onSlotLongClick = onSlotLongClick
+        )
+    }
+
+    if (showFullScreenMap) {
+        FullScreenMapModal(
+            initialDarkMode = isMapDarkMode,
+            onToggleDarkMode = onToggleMapDarkMode,
+            onDismiss = { showFullScreenMap = false }
         )
     }
 }

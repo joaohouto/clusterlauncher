@@ -29,7 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.data.model.AppItem
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
@@ -52,7 +52,7 @@ fun AppGridItem(
             .border(1.dp, SurfaceCardBorder, ItemShape)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(color = NeedleRed),
+                indication = rememberRipple(color = LocalClusterAccent.current.primary),
                 onClick = onClick,
                 onLongClick = onLongClick
             )

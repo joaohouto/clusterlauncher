@@ -50,7 +50,8 @@ import com.joaohouto.clusterlauncher.ui.drawer.AppDrawerViewModel
 import com.joaohouto.clusterlauncher.ui.drawer.AppSlideScreen
 import com.joaohouto.clusterlauncher.ui.theme.ClusterLauncherTheme
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.getAccentThemeById
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -70,9 +71,14 @@ class MainActivity : ComponentActivity() {
         UsbStateReceiver.checkInitialUsbState(this)
         BluetoothStateReceiver.checkInitialBluetoothState(this)
         com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper.updateDefaultLauncherState(this)
+        com.joaohouto.clusterlauncher.ui.cockpit.components.OsmdroidMapHelper.initOsmdroid(this)
+        com.joaohouto.clusterlauncher.ui.cockpit.components.MapLibreMapHelper.initMapLibre(this)
 
         setContent {
-            ClusterLauncherTheme {
+            val accentThemeId by appDrawerViewModel.accentThemeId.collectAsState()
+            val currentAccent = remember(accentThemeId) { getAccentThemeById(accentThemeId) }
+
+            ClusterLauncherTheme(accentTheme = currentAccent) {
                 LauncherMainContent(
                     viewModel = appDrawerViewModel,
                     scrollToCockpitTrigger = scrollToCockpitTrigger
@@ -119,6 +125,8 @@ private fun LauncherMainContent(
     val selectedCarBrand by viewModel.carBrand.collectAsState()
     val showMapOnHome by viewModel.showMapOnHome.collectAsState()
     val mapDarkMode by viewModel.mapDarkMode.collectAsState()
+    val accentThemeId by viewModel.accentThemeId.collectAsState()
+    val accent = LocalClusterAccent.current.primary
 
     val appSlides = remember(apps) {
         if (apps.isEmpty()) listOf(emptyList()) else apps.chunked(10)
@@ -154,7 +162,6 @@ private fun LauncherMainContent(
     ) {
         HorizontalPager(
             state = pagerState,
-            pageSpacing = 0.dp,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             if (page == 0) {
@@ -165,7 +172,8 @@ private fun LauncherMainContent(
                     onBrandClick = { showBrandPicker = true },
                     onSettingsClick = { showSettingsModal = true },
                     showMapOnHome = showMapOnHome,
-                    isMapDarkMode = mapDarkMode
+                    isMapDarkMode = mapDarkMode,
+                    onToggleMapDarkMode = { viewModel.setMapDarkMode(it) }
                 )
             } else {
                 val slideIndex = page - 1
@@ -178,21 +186,12 @@ private fun LauncherMainContent(
             }
         }
 
-        // Fixed page indicator: sits fixed across app slides, completely hidden on Cockpit (page 0)
-        val indicatorAlpha = if (pagerState.currentPage == 0) {
-            pagerState.currentPageOffsetFraction.coerceIn(0f, 1f)
-        } else if (pagerState.currentPage == 1 && pagerState.currentPageOffsetFraction < 0f) {
-            (1f + pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
-        } else {
-            1f
-        }
-
-        if (totalAppSlides > 1 && indicatorAlpha > 0.05f) {
+        // Slide pagination indicator dots (only visible when outside Cockpit)
+        if (pagerState.currentPage > 0 && totalAppSlides > 1) {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 8.dp)
-                    .graphicsLayer { alpha = indicatorAlpha },
+                    .padding(bottom = 12.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -205,7 +204,7 @@ private fun LauncherMainContent(
                             .height(6.dp)
                             .width(if (isActive) 24.dp else 6.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(if (isActive) NeedleRed else Color(0xFF383B44))
+                            .background(if (isActive) accent else Color(0xFF383B44))
                     )
                 }
             }
@@ -237,6 +236,8 @@ private fun LauncherMainContent(
         if (showSettingsModal) {
             LauncherSettingsModal(
                 selectedBrand = selectedCarBrand,
+                selectedAccentId = accentThemeId,
+                onSelectAccent = { viewModel.selectAccentTheme(it) },
                 showMapOnHome = showMapOnHome,
                 onToggleShowMap = { viewModel.setShowMapOnHome(it) },
                 isMapDarkMode = mapDarkMode,

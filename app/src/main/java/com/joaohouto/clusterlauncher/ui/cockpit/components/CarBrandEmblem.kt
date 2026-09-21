@@ -23,7 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.joaohouto.clusterlauncher.data.model.CarBrand
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -34,11 +34,13 @@ fun CarBrandEmblem(
     onLongClick: () -> Unit = onClick,
     size: Dp = 88.dp
 ) {
+    val accent = LocalClusterAccent.current.primary
+
     Box(
         modifier = modifier
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(bounded = false, radius = size / 2, color = NeedleRed),
+                indication = rememberRipple(bounded = false, radius = size / 2, color = accent),
                 onClick = onClick,
                 onLongClick = onLongClick
             )

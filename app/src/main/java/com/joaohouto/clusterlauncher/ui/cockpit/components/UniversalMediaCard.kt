@@ -53,9 +53,10 @@ import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.ui.components.MetallicButton
 import com.joaohouto.clusterlauncher.ui.components.MetallicButtonStyle
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
+import com.joaohouto.clusterlauncher.ui.theme.TextDisabled
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
 
@@ -106,7 +107,7 @@ fun UniversalMediaCard(
                     Icon(
                         imageVector = Icons.Rounded.Security,
                         contentDescription = null,
-                        tint = NeedleRed,
+                        tint = LocalClusterAccent.current.primary,
                         modifier = Modifier.size(40.dp)
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -199,14 +200,14 @@ fun UniversalMediaCard(
 
                     // Transport Buttons: placed side-by-side with title/artist
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         MetallicButton(
                             onClick = { MediaManager.skipToPrevious() },
                             icon = Icons.Rounded.SkipPrevious,
-                            modifier = Modifier.size(56.dp),
-                            iconSize = 28.dp,
+                            modifier = Modifier.size(68.dp),
+                            iconSize = 36.dp,
                             contentDescription = "Anterior"
                         )
 
@@ -214,16 +215,16 @@ fun UniversalMediaCard(
                             onClick = { MediaManager.playPause() },
                             icon = if (mediaState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             style = if (mediaState.isPlaying) MetallicButtonStyle.Accent else MetallicButtonStyle.Standard,
-                            modifier = Modifier.size(68.dp),
-                            iconSize = 34.dp,
+                            modifier = Modifier.size(80.dp),
+                            iconSize = 44.dp,
                             contentDescription = "Play/Pause"
                         )
 
                         MetallicButton(
                             onClick = { MediaManager.skipToNext() },
                             icon = Icons.Rounded.SkipNext,
-                            modifier = Modifier.size(56.dp),
-                            iconSize = 28.dp,
+                            modifier = Modifier.size(68.dp),
+                            iconSize = 36.dp,
                             contentDescription = "Próximo"
                         )
                     }
@@ -260,13 +261,13 @@ private fun MusicCoverFallback(modifier: Modifier = Modifier) {
                 .size(74.dp)
                 .border(1.dp, Color(0x20FFFFFF), CircleShape)
         )
-        // Center label with NeedleRed accent
+        // Center label with accent
         Box(
             modifier = Modifier
                 .size(46.dp)
                 .clip(CircleShape)
                 .background(Color(0xFF1C1E24))
-                .border(1.5.dp, NeedleRed, CircleShape),
+                .border(1.5.dp, LocalClusterAccent.current.primary, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(

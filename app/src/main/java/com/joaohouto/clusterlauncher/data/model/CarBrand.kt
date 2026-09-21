@@ -10,7 +10,7 @@ data class CarBrand(
 ) {
     companion object {
         val ALL_BRANDS = listOf(
-            CarBrand("cluster", "Cluster / Padrão", R.drawable.ic_brand_cluster),
+            CarBrand("android", "Android", R.drawable.ic_brand_android),
             CarBrand("volkswagen", "Volkswagen", R.drawable.ic_brand_volkswagen),
             CarBrand("chevrolet", "Chevrolet", R.drawable.ic_brand_chevrolet),
             CarBrand("fiat", "Fiat", R.drawable.ic_brand_fiat),
@@ -35,6 +35,7 @@ data class CarBrand(
         )
 
         fun getBrandById(id: String?): CarBrand {
+            if (id == "cluster" || id == "android") return ALL_BRANDS.first()
             return ALL_BRANDS.firstOrNull { it.id == id } ?: ALL_BRANDS.first()
         }
     }

@@ -88,7 +88,8 @@ object MBTilesDownloader {
         val maxLon = (centerLon + lonDelta).coerceIn(-180.0, 180.0)
 
         val tiles = mutableListOf<TileCoord>()
-        for (z in 13..16) {
+        val maxZ = if (radiusKm <= 5) 17 else 16
+        for (z in 13..maxZ) {
             val minX = floor(SlippyMapUtils.lonToTileX(minLon, z)).toInt()
             val maxX = floor(SlippyMapUtils.lonToTileX(maxLon, z)).toInt()
             val minY = floor(SlippyMapUtils.latToTileY(maxLat, z)).toInt()
@@ -162,8 +163,9 @@ object MBTilesDownloader {
                 }
                 writeMeta("name", "${provider.displayName} (${radiusKm} km)")
                 writeMeta("format", "png")
+                val maxDownloadZoom = tilesToDownload.maxOfOrNull { it.zoom } ?: 16
                 writeMeta("minzoom", "13")
-                writeMeta("maxzoom", "16")
+                writeMeta("maxzoom", maxDownloadZoom.toString())
                 writeMeta("type", "baselayer")
                 writeMeta("provider", provider.displayName)
                 writeMeta("radius", "$radiusKm km")

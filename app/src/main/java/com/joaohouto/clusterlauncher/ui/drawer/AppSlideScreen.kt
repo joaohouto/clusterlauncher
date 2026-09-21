@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.data.model.AppItem
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
-import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
@@ -129,7 +129,7 @@ fun AppSlideScreen(
                         ) {
                             Text(
                                 text = "Slot: ${stringResource(slotType.defaultTitleRes)}",
-                                color = NeedleRed,
+                                color = LocalClusterAccent.current.primary,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }

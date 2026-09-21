@@ -42,4 +42,13 @@
     <string name="permission_location">Acesso ao GPS</string>
     <string name="permission_granted">Concedido</string>
     <string name="permission_denied">Pendente</string>
+    <string name="settings_accent_title">Cor de Destaque (Accent)</string>
+    <string name="settings_accent_subtitle">Personalize a iluminação dos instrumentos e destaques do cockpit</string>
+    <string name="theme_needle_red">Needle Red</string>
+    <string name="theme_m_sport_blue">M-Sport Blue</string>
+    <string name="theme_racing_yellow">Racing Yellow</string>
+    <string name="theme_green_hell">Green Hell</string>
+    <string name="theme_sunset_orange">Sunset Orange</string>
+    <string name="theme_electric_cyan">Electric Cyan</string>
+    <string name="theme_pure_silver">Pure Silver</string>
 </resources>
