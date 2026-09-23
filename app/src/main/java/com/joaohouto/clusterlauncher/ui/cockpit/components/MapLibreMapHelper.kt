@@ -250,11 +250,15 @@ object MapLibreMapHelper {
             map.setMinZoomPreference(0.0)
             map.setMaxZoomPreference(22.0)
 
-            val targetBearing = if (followVehicleHeading) initialLocation.bearing.toDouble() else 0.0
+            val target = MapProjectionHelper.calculateRoadAheadTarget(
+                location = initialLocation,
+                followHeading = followVehicleHeading,
+                zoom = initialZoom
+            )
             map.cameraPosition = CameraPosition.Builder()
-                .target(LatLng(lat, lon))
+                .target(LatLng(target.latitude, target.longitude))
                 .zoom(initialZoom)
-                .bearing(targetBearing)
+                .bearing(target.bearing.toDouble())
                 .build()
 
             val styleJson = LocalMBTilesServer.buildCockpitDarkStyle(LocalMBTilesServer.port)

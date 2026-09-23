@@ -102,7 +102,8 @@ fun OfflineMapCard(
             GpsLocationRepository.startListening(context)
         }
         onDispose {
-            GpsLocationRepository.stopListening()
+            // O repositório de GPS é compartilhado globalmente pelo launcher (velocímetro, mapa, relógio)
+            // e tem seu ciclo de vida gerenciado pela MainActivity (onResume / onPause).
         }
     }
 
@@ -266,16 +267,17 @@ private fun MapLibreCardMapView(
                 },
                 update = { mapView ->
                     mapView.getMapAsync { map ->
-                        val lat = if (location.latitude != 0.0) location.latitude else -23.5505
-                        val lon = if (location.longitude != 0.0) location.longitude else -46.6333
-                        val targetBearing = if (followHeading) location.bearing.toDouble() else 0.0
-                        val bottomPad = if (followHeading) (mapView.height * 0.20) else 0.0
+                        val target = MapProjectionHelper.calculateRoadAheadTarget(
+                            location = location,
+                            followHeading = followHeading,
+                            zoom = 15.0,
+                            viewportHeightPx = if (mapView.height > 0) mapView.height else 400
+                        )
 
                         val cameraPosition = CameraPosition.Builder()
-                            .target(LatLng(lat, lon))
+                            .target(LatLng(target.latitude, target.longitude))
                             .zoom(15.0)
-                            .bearing(targetBearing)
-                            .padding(0.0, 0.0, 0.0, bottomPad)
+                            .bearing(target.bearing.toDouble())
                             .build()
                         map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 900)
                         MapLibreMapHelper.updateVehicleLocation(
@@ -355,9 +357,13 @@ private fun OsmCardMapView(
                         mapView.overlayManager.tilesOverlay.setColorFilter(null)
                     }
 
-                    val lat = if (location.latitude != 0.0) location.latitude else -23.5505
-                    val lon = if (location.longitude != 0.0) location.longitude else -46.6333
-                    mapView.controller.setCenter(GeoPoint(lat, lon))
+                    val target = MapProjectionHelper.calculateRoadAheadTarget(
+                        location = location,
+                        followHeading = followHeading,
+                        zoom = 15.0,
+                        viewportHeightPx = if (mapView.height > 0) mapView.height else 400
+                    )
+                    mapView.controller.setCenter(GeoPoint(target.latitude, target.longitude))
                     mapView.controller.setZoom(15.0)
                     mapView.mapOrientation = if (followHeading) -location.bearing else 0f
 

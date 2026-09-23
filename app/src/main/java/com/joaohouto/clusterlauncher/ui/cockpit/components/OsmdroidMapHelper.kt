@@ -121,10 +121,13 @@ object OsmdroidMapHelper {
         }
 
         // Posição inicial e orientação
-        val lat = if (initialLocation.latitude != 0.0) initialLocation.latitude else -23.5505
-        val lon = if (initialLocation.longitude != 0.0) initialLocation.longitude else -46.6333
+        val target = MapProjectionHelper.calculateRoadAheadTarget(
+            location = initialLocation,
+            followHeading = followHeading,
+            zoom = initialZoom
+        )
         mapView.controller.setZoom(initialZoom)
-        mapView.controller.setCenter(GeoPoint(lat, lon))
+        mapView.controller.setCenter(GeoPoint(target.latitude, target.longitude))
         mapView.mapOrientation = if (followHeading) -initialLocation.bearing else 0f
 
         // Adiciona overlay do veículo

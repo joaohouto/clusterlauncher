@@ -32,18 +32,84 @@ object GpsLocationRepository {
     private var locationManager: LocationManager? = null
     private var isListening = false
     private var gnssCallback: GnssStatus.Callback? = null
+    private var lastGpsFixTime = 0L
+    private var lastMovementLat = 0.0
+    private var lastMovementLon = 0.0
 
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-            val current = _locationState.value
-            val rawSpeedKmh = if (location.hasSpeed()) (location.speed * 3.6f) else 0f
-            // Filtra oscilação mínima de GPS estático (abaixo de 2.0 km/h o carro está essencialmente parado)
-            val speedKmh = if (rawSpeedKmh >= 2.0f) rawSpeedKmh else 0f
+            val isGps = location.provider == LocationManager.GPS_PROVIDER
+            val now = System.currentTimeMillis()
 
-            // Atualiza o rumo (bearing) somente se o veículo estiver em deslocamento real (>= 3.0 km/h).
+            if (isGps) {
+                lastGpsFixTime = now
+            } else {
+                // É NETWORK_PROVIDER ou PASSIVE_PROVIDER.
+                // Se tivemos sinal GPS válido nos últimos 20 segundos, ignora totalmente o provedor de rede
+                // para evitar saltos bruscos para o ponto inicial da viagem (célula celular ou roteador Wi-Fi).
+                if (now - lastGpsFixTime < 20_000L) {
+                    return
+                }
+                // Se não há GPS há mais de 20s, só aceita rede se tiver precisão razoável (<= 150m)
+                if (location.hasAccuracy() && location.accuracy > 150f) {
+                    return
+                }
+            }
+
+            val current = _locationState.value
+            // Rejeita updates com timestamp desatualizado em relação ao estado corrente
+            if (current.hasFix && location.time < current.timestamp - 1000L) {
+                return
+            }
+
+            val rawSpeedKmh = if (location.hasSpeed()) (location.speed * 3.6f) else 0f
+            var speedKmh = if (rawSpeedKmh >= 2.0f) rawSpeedKmh else 0f
+
+            // Calcula o vetor de movimentação real do veículo entre coordenadas consecutivas
+            var movementBearing: Float? = null
+            if (lastMovementLat != 0.0 && lastMovementLon != 0.0) {
+                val distanceResults = FloatArray(2)
+                Location.distanceBetween(
+                    lastMovementLat,
+                    lastMovementLon,
+                    location.latitude,
+                    location.longitude,
+                    distanceResults
+                )
+                val distanceMeters = distanceResults[0]
+                if (distanceMeters >= 2.5f) {
+                    // Deslocamento significativo detectado: calcula o rumo vetorial real
+                    movementBearing = (distanceResults[1] + 360f) % 360f
+                    lastMovementLat = location.latitude
+                    lastMovementLon = location.longitude
+
+                    // Se o chip GPS não forneceu velocidade direta, estima pela distância e tempo
+                    if (speedKmh == 0f && current.timestamp > 0 && location.time > current.timestamp) {
+                        val deltaSec = (location.time - current.timestamp) / 1000f
+                        if (deltaSec in 0.5f..5.0f) {
+                            val computedSpeed = (distanceMeters / deltaSec) * 3.6f
+                            if (computedSpeed >= 2.0f) {
+                                speedKmh = computedSpeed
+                            }
+                        }
+                    }
+                }
+            } else {
+                lastMovementLat = location.latitude
+                lastMovementLon = location.longitude
+            }
+
+            // Alvo de rumo: prioriza o rumo nativo de hardware se válido; caso contrário, usa o deslocamento real
+            val targetBearingCandidate = when {
+                location.hasBearing() && location.bearing != 0f -> location.bearing
+                movementBearing != null -> movementBearing
+                else -> null
+            }
+
+            // Atualiza o rumo (bearing) somente se o veículo estiver em deslocamento real (>= 2.5 km/h).
             // Com o carro parado, o chip de GPS gera ruído aleatório de azimute; mantemos o último rumo fixo.
-            val newBearing = if (speedKmh >= 3.0f && location.hasBearing() && location.bearing != 0f) {
-                val target = location.bearing
+            val newBearing = if (speedKmh >= 2.5f && targetBearingCandidate != null) {
+                val target = targetBearingCandidate
                 if (current.bearing == 0f) {
                     // Primeiro rumo detectado após inicialização: assume imediatamente sem lag do Norte
                     target
@@ -52,7 +118,7 @@ object GpsLocationRepository {
                     if (diff > 180f) diff -= 360f
                     if (diff < -180f) diff += 360f
                     val absDiff = kotlin.math.abs(diff)
-                    if (absDiff < 2.0f) {
+                    if (absDiff < 1.5f) {
                         current.bearing
                     } else {
                         // Fator de suavização adaptativo:
@@ -123,24 +189,43 @@ object GpsLocationRepository {
             }
             locationManager = manager
 
-            // Tenta obter a última localização conhecida para inicialização rápida
-            val lastGps = manager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-            val lastNetwork = try {
-                manager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            } catch (_: Exception) {
-                null
-            }
-            val initial = lastGps ?: lastNetwork
-            if (initial != null) {
-                _locationState.value = _locationState.value.copy(
-                    latitude = initial.latitude,
-                    longitude = initial.longitude,
-                    bearing = if (initial.hasBearing()) initial.bearing else 0f,
-                    speedKmh = if (initial.hasSpeed()) (initial.speed * 3.6f) else 0f,
-                    altitude = initial.altitude,
-                    hasFix = true,
-                    timestamp = initial.time
-                )
+            // Tenta obter a última localização conhecida somente se não tivermos uma localização ativa recente
+            val current = _locationState.value
+            val isCurrentFixValid = current.hasFix && current.latitude != 0.0 &&
+                    (System.currentTimeMillis() - current.timestamp < 120_000L)
+
+            if (!isCurrentFixValid) {
+                val lastGps = manager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                val isLastGpsFresh = lastGps != null && (System.currentTimeMillis() - lastGps.time < 30 * 60 * 1000L)
+
+                val initial = if (isLastGpsFresh) {
+                    lastGps
+                } else {
+                    val lastNetwork = try {
+                        manager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    if (lastNetwork != null && (!lastNetwork.hasAccuracy() || lastNetwork.accuracy <= 150f)) {
+                        lastNetwork
+                    } else {
+                        lastGps
+                    }
+                }
+
+                if (initial != null) {
+                    _locationState.value = _locationState.value.copy(
+                        latitude = initial.latitude,
+                        longitude = initial.longitude,
+                        bearing = if (initial.hasBearing()) initial.bearing else 0f,
+                        speedKmh = if (initial.hasSpeed()) (initial.speed * 3.6f) else 0f,
+                        altitude = initial.altitude,
+                        hasFix = true,
+                        timestamp = initial.time
+                    )
+                    lastMovementLat = initial.latitude
+                    lastMovementLon = initial.longitude
+                }
             }
 
             // Registra updates a cada 1000ms (1 segundo) e 0 metros

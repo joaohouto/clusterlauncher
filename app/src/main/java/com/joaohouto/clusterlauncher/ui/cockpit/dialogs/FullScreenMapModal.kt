@@ -57,6 +57,7 @@ import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.location.GpsLocationRepository
 import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
 import com.joaohouto.clusterlauncher.ui.cockpit.components.MapLibreMapHelper
+import com.joaohouto.clusterlauncher.ui.cockpit.components.MapProjectionHelper
 import com.joaohouto.clusterlauncher.ui.cockpit.components.OsmdroidMapHelper
 import com.joaohouto.clusterlauncher.ui.cockpit.components.VehicleMarkerOverlay
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
@@ -135,13 +136,17 @@ fun FullScreenMapModal(
                                 mapLibreMap = map
                                 map.addOnCameraMoveListener {
                                     currentZoom = map.cameraPosition.zoom.roundToInt()
-                                    val target = map.cameraPosition.target
-                                    if (target != null) {
-                                        val lat = if (locationState.latitude != 0.0) locationState.latitude else -23.5505
-                                        val lon = if (locationState.longitude != 0.0) locationState.longitude else -46.6333
-                                        val latDiff = Math.abs(target.latitude - lat)
-                                        val lonDiff = Math.abs(target.longitude - lon)
-                                        isMapPanned = (latDiff > 0.0008 || lonDiff > 0.0008)
+                                    val camTarget = map.cameraPosition.target
+                                    if (camTarget != null) {
+                                        val projected = MapProjectionHelper.calculateRoadAheadTarget(
+                                            location = locationState,
+                                            followHeading = followHeading,
+                                            zoom = currentZoom.toDouble(),
+                                            viewportHeightPx = mapLibreMapView?.height?.takeIf { it > 0 } ?: 600
+                                        )
+                                        val latDiff = Math.abs(camTarget.latitude - projected.latitude)
+                                        val lonDiff = Math.abs(camTarget.longitude - projected.longitude)
+                                        isMapPanned = (latDiff > 0.0015 || lonDiff > 0.0015)
                                     }
                                 }
                             }
@@ -151,17 +156,18 @@ fun FullScreenMapModal(
                         update = { mapView ->
                             val map = mapLibreMap
                             if (map != null && !isMapPanned) {
-                                val lat = if (locationState.latitude != 0.0) locationState.latitude else -23.5505
-                                val lon = if (locationState.longitude != 0.0) locationState.longitude else -46.6333
-                                val targetBearing = if (followHeading) locationState.bearing.toDouble() else 0.0
                                 val currentZ = map.cameraPosition.zoom
-                                val bottomPad = if (followHeading) (mapView.height * 0.20) else 0.0
+                                val target = MapProjectionHelper.calculateRoadAheadTarget(
+                                    location = locationState,
+                                    followHeading = followHeading,
+                                    zoom = currentZ,
+                                    viewportHeightPx = if (mapView.height > 0) mapView.height else 600
+                                )
 
                                 val cameraPosition = CameraPosition.Builder()
-                                    .target(LatLng(lat, lon))
+                                    .target(LatLng(target.latitude, target.longitude))
                                     .zoom(currentZ)
-                                    .bearing(targetBearing)
-                                    .padding(0.0, 0.0, 0.0, bottomPad)
+                                    .bearing(target.bearing.toDouble())
                                     .build()
                                 map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 900)
                             }
@@ -205,9 +211,15 @@ fun FullScreenMapModal(
                             mapView.addMapListener(object : MapListener {
                                 override fun onScroll(event: ScrollEvent?): Boolean {
                                     val center = mapView.mapCenter
-                                    val latDiff = Math.abs(center.latitude - locationState.latitude)
-                                    val lonDiff = Math.abs(center.longitude - locationState.longitude)
-                                    isMapPanned = (latDiff > 0.001 || lonDiff > 0.001)
+                                    val projected = MapProjectionHelper.calculateRoadAheadTarget(
+                                        location = locationState,
+                                        followHeading = followHeading,
+                                        zoom = mapView.zoomLevelDouble,
+                                        viewportHeightPx = if (mapView.height > 0) mapView.height else 600
+                                    )
+                                    val latDiff = Math.abs(center.latitude - projected.latitude)
+                                    val lonDiff = Math.abs(center.longitude - projected.longitude)
+                                    isMapPanned = (latDiff > 0.0015 || lonDiff > 0.0015)
                                     return false
                                 }
 
@@ -228,9 +240,13 @@ fun FullScreenMapModal(
                             }
 
                             if (!isMapPanned) {
-                                val lat = if (locationState.latitude != 0.0) locationState.latitude else -23.5505
-                                val lon = if (locationState.longitude != 0.0) locationState.longitude else -46.6333
-                                mapView.controller.setCenter(GeoPoint(lat, lon))
+                                val target = MapProjectionHelper.calculateRoadAheadTarget(
+                                    location = locationState,
+                                    followHeading = followHeading,
+                                    zoom = mapView.zoomLevelDouble,
+                                    viewportHeightPx = if (mapView.height > 0) mapView.height else 600
+                                )
+                                mapView.controller.setCenter(GeoPoint(target.latitude, target.longitude))
                                 mapView.mapOrientation = if (followHeading) -locationState.bearing else 0f
                             }
 
@@ -419,21 +435,24 @@ fun FullScreenMapModal(
                             .size(62.dp)
                             .clip(CircleShape)
                             .clickable {
+                                val target = MapProjectionHelper.calculateRoadAheadTarget(
+                                    location = locationState,
+                                    followHeading = followHeading,
+                                    zoom = currentZoom.toDouble(),
+                                    viewportHeightPx = 600
+                                )
                                 if (mapState.isVectorMap) {
                                     mapLibreMap?.let { map ->
-                                        val lat = if (locationState.latitude != 0.0) locationState.latitude else -23.5505
-                                        val lon = if (locationState.longitude != 0.0) locationState.longitude else -46.6333
-                                        val targetBearing = if (followHeading) locationState.bearing.toDouble() else 0.0
                                         val cameraPosition = CameraPosition.Builder()
-                                            .target(LatLng(lat, lon))
-                                            .bearing(targetBearing)
+                                            .target(LatLng(target.latitude, target.longitude))
+                                            .bearing(target.bearing.toDouble())
                                             .build()
                                         map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition))
                                     }
                                 } else {
                                     osmdroidMapView?.let { mv ->
                                         mv.controller.animateTo(
-                                            GeoPoint(locationState.latitude, locationState.longitude)
+                                            GeoPoint(target.latitude, target.longitude)
                                         )
                                         if (followHeading) {
                                             mv.mapOrientation = -locationState.bearing
