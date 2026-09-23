@@ -809,6 +809,66 @@
               </a>
             </div>
           </div>
+
+          <!-- Card Cluster Radio -->
+          <div class="app-card">
+            <div class="app-header">
+              <div class="app-icon">
+                <img src="radio.svg" alt="Cluster Radio Icon" />
+              </div>
+              <div class="app-title-area">
+                <h3>Cluster Radio</h3>
+                <div class="badges-row">
+                  <span class="meta-badge highlight" id="radio-card-ver"
+                    >v1.0.0</span
+                  >
+                  <span class="meta-badge" id="radio-card-size">~2.8 MB</span>
+                  <span class="meta-badge">Rádio AM/FM</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="app-desc">
+              Rádio AM/FM esportivo sob medida para multimídias Android. Dial
+              analógico-digital de 60 FPS com ponteiro iluminado, grade de
+              favoritos P1..P6, integração veicular com teclas de volante e
+              notificação com controles rápidos no sistema.
+            </p>
+
+            <div class="card-actions">
+              <a
+                href="https://github.com/joaohouto/clusterradio/releases/download/v1.0.0/ClusterRadio-v1.0.0.apk"
+                class="btn-card-download"
+                id="radio-card-download"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span id="radio-card-btn-text"
+                  >Baixar Radio APK (v1.0.0)</span
+                >
+              </a>
+              <a
+                href="https://github.com/joaohouto/clusterradio"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn-card-repo"
+              >
+                Ver código no GitHub &rarr;
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -985,14 +1045,18 @@
             <div class="synergy-icon">
               <img src="player.svg" alt="Player" />
             </div>
+            <div class="synergy-plus">+</div>
+            <div class="synergy-icon">
+              <img src="radio.svg" alt="Radio" />
+            </div>
           </div>
-          <h2>Sinergia Perfeita: Launcher + Player</h2>
+          <h2>Sinergia Perfeita: Launcher + Player + Radio</h2>
           <p>
-            Enquanto o <strong>Cluster Player</strong> gerencia seus pendrives
-            USB e pastas físicas em segundo plano sem engasgos, o
-            <strong>Cluster Launcher</strong> o assume no Slot 1 da Quick Dock e
-            no Widget de Mídia. A dupla perfeita para quem quer um cockpit
-            automotivo moderno, limpo e independente de internet.
+            O ecossistema definitivo para o cockpit automotivo: o
+            <strong>Cluster Launcher</strong> assume o controle da tela inicial e Quick Dock,
+            o <strong>Cluster Player</strong> reproduz suas músicas locais sem engasgos, e
+            o <strong>Cluster Radio</strong> sintoniza emissoras AM/FM com mostrador esportivo analógico-digital,
+            notificação em segundo plano e total integração com teclas de volante.
           </p>
         </div>
       </section>
@@ -1021,6 +1085,12 @@
           target="_blank"
           rel="noopener noreferrer"
           >GitHub Player</a
+        >
+        <a
+          href="https://github.com/joaohouto/clusterradio"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub Radio</a
         >
       </div>
     </footer>
@@ -1137,6 +1207,47 @@
           .catch(function (err) {
             console.log(
               "Usando URLs estáticas de fallback para o Cluster Player",
+            );
+          });
+
+        // 3. Atualiza Cluster Radio com a release mais recente
+        fetch(
+          "https://api.github.com/repos/joaohouto/clusterradio/releases/latest",
+        )
+          .then(function (res) {
+            if (!res.ok) throw new Error("Status " + res.status);
+            return res.json();
+          })
+          .then(function (data) {
+            if (!data || !data.assets) return;
+            var apkAsset = data.assets.find(function (a) {
+              return a.name && a.name.endsWith(".apk");
+            });
+
+            if (apkAsset && apkAsset.browser_download_url) {
+              var downloadUrl = apkAsset.browser_download_url;
+              var sizeText = formatBytes(apkAsset.size);
+              var ver = data.tag_name || "v1.0.0";
+
+              var cardDownload = document.getElementById(
+                "radio-card-download",
+              );
+              if (cardDownload) cardDownload.href = downloadUrl;
+
+              var cardBtnText = document.getElementById("radio-card-btn-text");
+              if (cardBtnText)
+                cardBtnText.textContent = "Baixar Radio APK (" + ver + ")";
+
+              var cardVer = document.getElementById("radio-card-ver");
+              if (cardVer) cardVer.textContent = ver;
+
+              var cardSize = document.getElementById("radio-card-size");
+              if (cardSize && sizeText) cardSize.textContent = sizeText;
+            }
+          })
+          .catch(function (err) {
+            console.log(
+              "Usando URLs estáticas de fallback para o Cluster Radio",
             );
           });
       })();
