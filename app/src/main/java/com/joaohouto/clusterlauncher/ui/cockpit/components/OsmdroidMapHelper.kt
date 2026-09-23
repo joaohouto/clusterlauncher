@@ -58,7 +58,8 @@ object OsmdroidMapHelper {
         isDarkMode: Boolean,
         initialZoom: Double = 17.0,
         primaryColor: Int = Color.parseColor("#E61924"),
-        darkColor: Int = Color.parseColor("#8B0000")
+        darkColor: Int = Color.parseColor("#8B0000"),
+        followHeading: Boolean = false
     ): MapView {
         initOsmdroid(context)
 
@@ -119,14 +120,15 @@ object OsmdroidMapHelper {
             mapView.overlayManager.tilesOverlay.setColorFilter(null)
         }
 
-        // Posição inicial
+        // Posição inicial e orientação
         val lat = if (initialLocation.latitude != 0.0) initialLocation.latitude else -23.5505
         val lon = if (initialLocation.longitude != 0.0) initialLocation.longitude else -46.6333
         mapView.controller.setZoom(initialZoom)
         mapView.controller.setCenter(GeoPoint(lat, lon))
+        mapView.mapOrientation = if (followHeading) -initialLocation.bearing else 0f
 
         // Adiciona overlay do veículo
-        val vehicleOverlay = VehicleMarkerOverlay(initialLocation, primaryColor, darkColor)
+        val vehicleOverlay = VehicleMarkerOverlay(initialLocation, primaryColor, darkColor, followHeading)
         mapView.overlays.add(vehicleOverlay)
 
         return mapView
@@ -140,7 +142,8 @@ object OsmdroidMapHelper {
 class VehicleMarkerOverlay(
     var location: GpsLocationData,
     var primaryColor: Int = Color.parseColor("#E61924"),
-    var darkColor: Int = Color.parseColor("#8B0000")
+    var darkColor: Int = Color.parseColor("#8B0000"),
+    var followHeading: Boolean = false
 ) : Overlay() {
 
     private val shadowPaint = Paint().apply {
@@ -188,7 +191,8 @@ class VehicleMarkerOverlay(
         val cy = point.y.toFloat()
 
         canvas.save()
-        canvas.rotate(location.bearing, cx, cy)
+        val rotation = if (followHeading) 0f else location.bearing
+        canvas.rotate(rotation, cx, cy)
 
         path.reset()
         path.moveTo(cx, cy - 26f)

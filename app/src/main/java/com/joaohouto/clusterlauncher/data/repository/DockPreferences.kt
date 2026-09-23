@@ -91,4 +91,18 @@ class DockPreferences(private val context: Context) {
             preferences[ACCENT_THEME_KEY] = themeId
         }
     }
+
+    private val MAP_FOLLOW_HEADING_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("map_follow_heading")
+
+    fun getMapFollowHeadingFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[MAP_FOLLOW_HEADING_KEY] ?: false
+        }
+    }
+
+    suspend fun setMapFollowHeading(follow: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[MAP_FOLLOW_HEADING_KEY] = follow
+        }
+    }
 }

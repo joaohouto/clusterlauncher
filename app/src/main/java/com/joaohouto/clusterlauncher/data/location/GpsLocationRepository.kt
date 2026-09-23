@@ -44,13 +44,28 @@ object GpsLocationRepository {
             // Com o carro parado, o chip de GPS gera ruído aleatório de azimute; mantemos o último rumo fixo.
             val newBearing = if (speedKmh >= 3.0f && location.hasBearing() && location.bearing != 0f) {
                 val target = location.bearing
-                var diff = (target - current.bearing) % 360f
-                if (diff > 180f) diff -= 360f
-                if (diff < -180f) diff += 360f
-                if (kotlin.math.abs(diff) < 2.5f) {
-                    current.bearing
+                if (current.bearing == 0f) {
+                    // Primeiro rumo detectado após inicialização: assume imediatamente sem lag do Norte
+                    target
                 } else {
-                    (current.bearing + diff * 0.35f + 360f) % 360f
+                    var diff = (target - current.bearing) % 360f
+                    if (diff > 180f) diff -= 360f
+                    if (diff < -180f) diff += 360f
+                    val absDiff = kotlin.math.abs(diff)
+                    if (absDiff < 2.0f) {
+                        current.bearing
+                    } else {
+                        // Fator de suavização adaptativo:
+                        // - Oscilações pequenas (< 15°): suave (0.35f) para filtrar ruídos em linha reta
+                        // - Curvas médias (15° a 45°): responsivo (0.65f)
+                        // - Curvas acentuadas ou retorno (>= 45°): resposta rápida (0.90f) ao volante
+                        val factor = when {
+                            absDiff >= 45f -> 0.90f
+                            absDiff >= 15f -> 0.65f
+                            else -> 0.35f
+                        }
+                        (current.bearing + diff * factor + 360f) % 360f
+                    }
                 }
             } else {
                 current.bearing

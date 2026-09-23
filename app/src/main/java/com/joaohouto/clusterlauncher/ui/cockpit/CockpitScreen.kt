@@ -38,6 +38,8 @@ fun CockpitScreen(
     showMapOnHome: Boolean = true,
     isMapDarkMode: Boolean = false,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
+    mapFollowHeading: Boolean = false,
+    onToggleMapFollowHeading: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showFullScreenMap by remember { mutableStateOf(false) }
@@ -100,6 +102,7 @@ fun CockpitScreen(
                             .fillMaxWidth()
                             .weight(1f),
                         isDarkMode = isMapDarkMode,
+                        followHeading = mapFollowHeading,
                         onMapClick = { showFullScreenMap = true }
                     )
 
@@ -124,6 +127,7 @@ fun CockpitScreen(
     if (showFullScreenMap) {
         FullScreenMapModal(
             initialDarkMode = isMapDarkMode,
+            followHeading = mapFollowHeading,
             onToggleDarkMode = onToggleMapDarkMode,
             onDismiss = { showFullScreenMap = false }
         )

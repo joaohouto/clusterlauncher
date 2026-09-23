@@ -118,6 +118,8 @@ fun LauncherSettingsModal(
     onToggleShowMap: (Boolean) -> Unit = {},
     isMapDarkMode: Boolean = false,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
+    mapFollowHeading: Boolean = false,
+    onToggleMapFollowHeading: (Boolean) -> Unit = {},
     onSelectBrandClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -327,7 +329,9 @@ fun LauncherSettingsModal(
                             },
                             onCancelDownload = {
                                 MBTilesDownloader.cancelDownload(context)
-                            }
+                            },
+                            mapFollowHeading = mapFollowHeading,
+                            onToggleMapFollowHeading = onToggleMapFollowHeading
                         )
 
                         SettingsTab.VEHICLE -> VehicleSettingsPanel(
@@ -342,6 +346,8 @@ fun LauncherSettingsModal(
                             onToggleShowMap = onToggleShowMap,
                             isMapDarkMode = isMapDarkMode,
                             onToggleMapDarkMode = onToggleMapDarkMode,
+                            mapFollowHeading = mapFollowHeading,
+                            onToggleMapFollowHeading = onToggleMapFollowHeading,
                             isDefaultLauncher = isDefaultLauncher,
                             onSetDefaultLauncher = { DefaultLauncherHelper.requestSetDefaultLauncher(context) },
                             hasGpsPermission = hasGpsPermission,
@@ -417,7 +423,9 @@ private fun MapsSettingsPanel(
     onSelectMap: (MapFileInfo) -> Unit,
     onDeleteMap: (MapFileInfo) -> Unit,
     onStartDownload: () -> Unit,
-    onCancelDownload: () -> Unit
+    onCancelDownload: () -> Unit,
+    mapFollowHeading: Boolean,
+    onToggleMapFollowHeading: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
     val accent = LocalClusterAccent.current.primary
@@ -506,6 +514,48 @@ private fun MapsSettingsPanel(
                         )
                     }
                 }
+            }
+        }
+
+        // Configuração de Orientação do Mapa (Heading-Up)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Travar Indicador no Topo (Heading-Up)",
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Seta fixa apontando para cima e mapa rotacionando com o deslocamento do carro",
+                        color = TextDisabled,
+                        fontSize = 11.sp
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Switch(
+                    checked = mapFollowHeading,
+                    onCheckedChange = onToggleMapFollowHeading,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = accent,
+                        uncheckedThumbColor = TextDisabled,
+                        uncheckedTrackColor = Color(0xFF1E222B)
+                    )
+                )
             }
         }
 
@@ -977,6 +1027,8 @@ private fun SystemSettingsPanel(
     onToggleShowMap: (Boolean) -> Unit,
     isMapDarkMode: Boolean,
     onToggleMapDarkMode: (Boolean) -> Unit,
+    mapFollowHeading: Boolean,
+    onToggleMapFollowHeading: (Boolean) -> Unit,
     isDefaultLauncher: Boolean,
     onSetDefaultLauncher: () -> Unit,
     hasGpsPermission: Boolean,
@@ -1058,6 +1110,28 @@ private fun SystemSettingsPanel(
                     Switch(
                         checked = isMapDarkMode,
                         onCheckedChange = onToggleMapDarkMode,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
+                    )
+                }
+
+                // Toggle: Travar Indicador no Topo (Heading-Up)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Travar Indicador no Topo (Heading-Up)", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(text = "Seta fixa apontando para cima enquanto o mapa rotaciona com o veículo", color = TextDisabled, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = mapFollowHeading,
+                        onCheckedChange = onToggleMapFollowHeading,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = accent,

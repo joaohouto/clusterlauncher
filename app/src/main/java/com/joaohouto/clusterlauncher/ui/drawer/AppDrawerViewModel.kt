@@ -84,6 +84,19 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    val mapFollowHeading: StateFlow<Boolean> = dockPreferences.getMapFollowHeadingFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    fun setMapFollowHeading(follow: Boolean) {
+        viewModelScope.launch {
+            dockPreferences.setMapFollowHeading(follow)
+        }
+    }
+
     init {
         loadApps()
     }

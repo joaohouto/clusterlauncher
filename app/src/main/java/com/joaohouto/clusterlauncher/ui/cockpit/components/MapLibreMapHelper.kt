@@ -110,7 +110,8 @@ object MapLibreMapHelper {
         style: Style,
         location: GpsLocationData,
         primaryColor: Int = Color.parseColor("#E61924"),
-        darkColor: Int = Color.parseColor("#8B0000")
+        darkColor: Int = Color.parseColor("#8B0000"),
+        followVehicleHeading: Boolean = false
     ) {
         try {
             val density = context.resources.displayMetrics.density
@@ -130,14 +131,21 @@ object MapLibreMapHelper {
                 style.addSource(source)
             }
 
+            val iconRotation = if (followVehicleHeading) 0f else location.bearing
+            val rotationAlignment = if (followVehicleHeading) {
+                Property.ICON_ROTATION_ALIGNMENT_VIEWPORT
+            } else {
+                Property.ICON_ROTATION_ALIGNMENT_MAP
+            }
+
             if (style.getLayer(VEHICLE_LAYER_ID) == null) {
                 val symbolLayer = SymbolLayer(VEHICLE_LAYER_ID, VEHICLE_SOURCE_ID).apply {
                     setProperties(
                         PropertyFactory.iconImage(VEHICLE_ICON_ID),
-                        PropertyFactory.iconRotate(location.bearing),
+                        PropertyFactory.iconRotate(iconRotation),
                         PropertyFactory.iconAllowOverlap(true),
                         PropertyFactory.iconIgnorePlacement(true),
-                        PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
+                        PropertyFactory.iconRotationAlignment(rotationAlignment),
                         PropertyFactory.iconAnchor(Property.ICON_ANCHOR_CENTER),
                         PropertyFactory.iconOpacity(if (hasValidLocation) 1.0f else 0.7f)
                     )
@@ -157,7 +165,8 @@ object MapLibreMapHelper {
         map: MapLibreMap?,
         location: GpsLocationData,
         primaryColor: Int = Color.parseColor("#E61924"),
-        darkColor: Int = Color.parseColor("#8B0000")
+        darkColor: Int = Color.parseColor("#8B0000"),
+        followVehicleHeading: Boolean = false
     ) {
         if (map == null) return
         val style = map.style ?: return
@@ -178,14 +187,22 @@ object MapLibreMapHelper {
         val source = style.getSourceAs<GeoJsonSource>(VEHICLE_SOURCE_ID)
         val layer = style.getLayerAs<SymbolLayer>(VEHICLE_LAYER_ID)
 
+        val iconRotation = if (followVehicleHeading) 0f else location.bearing
+        val rotationAlignment = if (followVehicleHeading) {
+            Property.ICON_ROTATION_ALIGNMENT_VIEWPORT
+        } else {
+            Property.ICON_ROTATION_ALIGNMENT_MAP
+        }
+
         if (source != null && layer != null) {
             source.setGeoJson(Point.fromLngLat(lon, lat))
             layer.setProperties(
-                PropertyFactory.iconRotate(location.bearing),
+                PropertyFactory.iconRotate(iconRotation),
+                PropertyFactory.iconRotationAlignment(rotationAlignment),
                 PropertyFactory.iconOpacity(if (hasValidLocation) 1.0f else 0.7f)
             )
         } else {
-            setupVehicleMarker(context, style, location, primaryColor, darkColor)
+            setupVehicleMarker(context, style, location, primaryColor, darkColor, followVehicleHeading)
         }
     }
 
@@ -200,6 +217,7 @@ object MapLibreMapHelper {
         initialZoom: Double = 17.0,
         primaryColor: Int = Color.parseColor("#E61924"),
         darkColor: Int = Color.parseColor("#8B0000"),
+        followVehicleHeading: Boolean = false,
         onMapReady: ((MapLibreMap) -> Unit)? = null
     ): MapView {
         initMapLibre(context)
@@ -232,9 +250,11 @@ object MapLibreMapHelper {
             map.setMinZoomPreference(0.0)
             map.setMaxZoomPreference(22.0)
 
+            val targetBearing = if (followVehicleHeading) initialLocation.bearing.toDouble() else 0.0
             map.cameraPosition = CameraPosition.Builder()
                 .target(LatLng(lat, lon))
                 .zoom(initialZoom)
+                .bearing(targetBearing)
                 .build()
 
             val styleJson = LocalMBTilesServer.buildCockpitDarkStyle(LocalMBTilesServer.port)
@@ -246,7 +266,7 @@ object MapLibreMapHelper {
 
             map.setStyle(styleBuilder) { style ->
                 Log.i(TAG, "Estilo Cockpit Dark carregado com sucesso no MapLibre")
-                setupVehicleMarker(context, style, initialLocation, primaryColor, darkColor)
+                setupVehicleMarker(context, style, initialLocation, primaryColor, darkColor, followVehicleHeading)
                 onMapReady?.invoke(map)
             }
         }

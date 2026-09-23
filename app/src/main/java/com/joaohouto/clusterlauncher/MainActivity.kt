@@ -125,6 +125,7 @@ private fun LauncherMainContent(
     val selectedCarBrand by viewModel.carBrand.collectAsState()
     val showMapOnHome by viewModel.showMapOnHome.collectAsState()
     val mapDarkMode by viewModel.mapDarkMode.collectAsState()
+    val mapFollowHeading by viewModel.mapFollowHeading.collectAsState()
     val accentThemeId by viewModel.accentThemeId.collectAsState()
     val accent = LocalClusterAccent.current.primary
 
@@ -173,7 +174,9 @@ private fun LauncherMainContent(
                     onSettingsClick = { showSettingsModal = true },
                     showMapOnHome = showMapOnHome,
                     isMapDarkMode = mapDarkMode,
-                    onToggleMapDarkMode = { viewModel.setMapDarkMode(it) }
+                    onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
+                    mapFollowHeading = mapFollowHeading,
+                    onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) }
                 )
             } else {
                 val slideIndex = page - 1
@@ -242,6 +245,8 @@ private fun LauncherMainContent(
                 onToggleShowMap = { viewModel.setShowMapOnHome(it) },
                 isMapDarkMode = mapDarkMode,
                 onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
+                mapFollowHeading = mapFollowHeading,
+                onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
                 onSelectBrandClick = {
                     showSettingsModal = false
                     showBrandPicker = true

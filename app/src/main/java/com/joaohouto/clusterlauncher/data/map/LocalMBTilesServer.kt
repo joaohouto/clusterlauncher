@@ -3,6 +3,7 @@ package com.joaohouto.clusterlauncher.data.map
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
+import android.util.LruCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,6 +40,13 @@ object LocalMBTilesServer {
     @Volatile
     private var appContext: Context? = null
 
+    // Cache LRU em memória para blocos PBF recentes (reduz I/O de disco SQLite em rotações e panning)
+    private val tileCache = LruCache<Long, ByteArray>(250)
+
+    private fun getTileCacheKey(z: Int, x: Int, y: Int): Long {
+        return (z.toLong() and 0x3FL shl 54) or ((x.toLong() and 0x1FFFFFFL) shl 27) or (y.toLong() and 0x1FFFFFFL)
+    }
+
     fun init(context: Context) {
         appContext = context.applicationContext
     }
@@ -49,6 +57,9 @@ object LocalMBTilesServer {
     fun setSource(file: File?) {
         if (currentFile?.absolutePath == file?.absolutePath && activeDatabase?.isOpen == true) return
         currentFile = file
+        synchronized(tileCache) {
+            tileCache.evictAll()
+        }
         try {
             activeDatabase?.close()
         } catch (_: Exception) {}
@@ -104,6 +115,9 @@ object LocalMBTilesServer {
     @Synchronized
     fun stop() {
         isRunning = false
+        synchronized(tileCache) {
+            tileCache.evictAll()
+        }
         try {
             serverSocket?.close()
         } catch (_: Exception) {}
@@ -185,6 +199,11 @@ object LocalMBTilesServer {
     }
 
     private fun fetchTileBytes(z: Int, x: Int, y: Int): ByteArray? {
+        val cacheKey = getTileCacheKey(z, x, y)
+        synchronized(tileCache) {
+            tileCache.get(cacheKey)?.let { return it }
+        }
+
         val db = activeDatabase ?: return null
         if (!db.isOpen) return null
         var cursor: android.database.Cursor? = null
@@ -194,7 +213,13 @@ object LocalMBTilesServer {
                 arrayOf(z.toString(), x.toString(), y.toString())
             )
             if (cursor.moveToFirst()) {
-                cursor.getBlob(0)
+                val data = cursor.getBlob(0)
+                if (data != null && data.isNotEmpty()) {
+                    synchronized(tileCache) {
+                        tileCache.put(cacheKey, data)
+                    }
+                }
+                data
             } else {
                 null
             }
@@ -218,6 +243,7 @@ object LocalMBTilesServer {
             append("Access-Control-Allow-Origin: *\r\n")
             append("Cache-Control: public, max-age=86400\r\n")
             append("Content-Length: ${data.size}\r\n")
+            append("Connection: close\r\n")
             append("\r\n")
         }
         out.write(header.toByteArray(Charsets.US_ASCII))
@@ -227,7 +253,7 @@ object LocalMBTilesServer {
 
     private fun send404(client: Socket) {
         val out = BufferedOutputStream(client.getOutputStream())
-        val header = "HTTP/1.1 404 Not Found\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 0\r\n\r\n"
+        val header = "HTTP/1.1 404 Not Found\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
         out.write(header.toByteArray(Charsets.US_ASCII))
         out.flush()
     }
@@ -421,6 +447,51 @@ object LocalMBTilesServer {
               }
             },
             {
+              "id": "building_shadow",
+              "type": "fill",
+              "source": "openmaptiles",
+              "source-layer": "building",
+              "minzoom": 13,
+              "paint": {
+                "fill-color": "#07080D",
+                "fill-opacity": {
+                  "base": 1.0,
+                  "stops": [[13, 0.25], [15, 0.45], [17, 0.6]]
+                },
+                "fill-translate": [1.5, 1.5],
+                "fill-translate-anchor": "viewport"
+              }
+            },
+            {
+              "id": "building",
+              "type": "fill",
+              "source": "openmaptiles",
+              "source-layer": "building",
+              "minzoom": 13,
+              "paint": {
+                "fill-color": "#1E2432",
+                "fill-opacity": {
+                  "base": 1.0,
+                  "stops": [[13, 0.6], [15, 0.85], [17, 0.95]]
+                }
+              }
+            },
+            {
+              "id": "building_outline",
+              "type": "line",
+              "source": "openmaptiles",
+              "source-layer": "building",
+              "minzoom": 13,
+              "paint": {
+                "line-color": "#2E374A",
+                "line-width": {
+                  "base": 1.2,
+                  "stops": [[13, 0.4], [15, 0.8], [17, 1.2]]
+                },
+                "line-opacity": 0.85
+              }
+            },
+            {
               "id": "road_tunnel",
               "type": "line",
               "source": "openmaptiles",
@@ -431,7 +502,7 @@ object LocalMBTilesServer {
                 "line-dasharray": [3, 2],
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[10, 1.0], [14, 2.5], [17, 5.0]]
+                  "stops": [[10, 1.4], [14, 3.5], [17, 7.5]]
                 }
               }
             },
@@ -473,10 +544,10 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "minor", "service", "residential", "track", "path"],
               "paint": {
-                "line-color": "#1F242F",
+                "line-color": "#28303F",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[10, 0.6], [14, 2.0], [17, 4.5]]
+                  "stops": [[10, 0.7], [14, 2.2], [17, 4.8]]
                 }
               }
             },
@@ -487,7 +558,7 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "secondary", "tertiary"],
               "paint": {
-                "line-color": "#2C3342",
+                "line-color": "#354054",
                 "line-width": {
                   "base": 1.2,
                   "stops": [[7, 0.8], [12, 2.2], [16, 6.0]]
@@ -499,12 +570,26 @@ object LocalMBTilesServer {
               "type": "line",
               "source": "openmaptiles",
               "source-layer": "transportation",
-              "filter": ["==", "class", "primary"],
+              "filter": ["in", "class", "primary", "primary_link"],
               "paint": {
-                "line-color": "#3B4457",
+                "line-color": "#485670",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[6, 1.0], [12, 3.0], [16, 8.0]]
+                  "stops": [[6, 1.6], [10, 3.2], [13, 5.5], [16, 10.0], [17, 12.5]]
+                }
+              }
+            },
+            {
+              "id": "road_trunk_casing",
+              "type": "line",
+              "source": "openmaptiles",
+              "source-layer": "transportation",
+              "filter": ["in", "class", "trunk", "trunk_link"],
+              "paint": {
+                "line-color": "#0D0F14",
+                "line-width": {
+                  "base": 1.2,
+                  "stops": [[5, 2.4], [9, 4.2], [12, 7.2], [15, 12.0], [17, 17.5]]
                 }
               }
             },
@@ -513,12 +598,12 @@ object LocalMBTilesServer {
               "type": "line",
               "source": "openmaptiles",
               "source-layer": "transportation",
-              "filter": ["==", "class", "trunk"],
+              "filter": ["in", "class", "trunk", "trunk_link"],
               "paint": {
-                "line-color": "#4A556D",
+                "line-color": "#5A6A88",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[5, 1.2], [11, 3.5], [16, 9.0]]
+                  "stops": [[5, 1.6], [9, 3.2], [12, 5.5], [15, 9.8], [17, 14.0]]
                 }
               }
             },
@@ -527,12 +612,12 @@ object LocalMBTilesServer {
               "type": "line",
               "source": "openmaptiles",
               "source-layer": "transportation",
-              "filter": ["==", "class", "motorway"],
+              "filter": ["in", "class", "motorway", "motorway_link"],
               "paint": {
-                "line-color": "#12141A",
+                "line-color": "#0D0F14",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[5, 1.8], [11, 4.5], [16, 11.0]]
+                  "stops": [[5, 2.8], [9, 5.0], [12, 8.5], [15, 14.0], [17, 20.0]]
                 }
               }
             },
@@ -541,12 +626,12 @@ object LocalMBTilesServer {
               "type": "line",
               "source": "openmaptiles",
               "source-layer": "transportation",
-              "filter": ["==", "class", "motorway"],
+              "filter": ["in", "class", "motorway", "motorway_link"],
               "paint": {
-                "line-color": "#5A6784",
+                "line-color": "#6E80A3",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[5, 1.2], [11, 3.5], [16, 9.0]]
+                  "stops": [[5, 2.0], [9, 3.8], [12, 6.5], [15, 11.5], [17, 16.5]]
                 }
               }
             },
@@ -561,7 +646,7 @@ object LocalMBTilesServer {
                 "line-color": "#07080B",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[11, 4.0], [14, 7.0], [17, 13.0]]
+                  "stops": [[11, 8.5], [14, 14.0], [17, 22.0]]
                 }
               }
             },
@@ -573,10 +658,10 @@ object LocalMBTilesServer {
               "minzoom": 11,
               "filter": ["==", "brunnel", "bridge"],
               "paint": {
-                "line-color": "#475266",
+                "line-color": "#52607A",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[11, 2.5], [14, 4.5], [17, 9.5]]
+                  "stops": [[11, 6.0], [14, 11.0], [17, 17.5]]
                 }
               }
             },
@@ -620,17 +705,6 @@ object LocalMBTilesServer {
               "paint": {
                 "text-color": "#70809C",
                 "text-opacity": 0.85
-              }
-            },
-            {
-              "id": "building",
-              "type": "fill",
-              "source": "openmaptiles",
-              "source-layer": "building",
-              "minzoom": 13,
-              "paint": {
-                "fill-color": "#1C202B",
-                "fill-opacity": 0.7
               }
             },
             {
@@ -749,9 +823,9 @@ object LocalMBTilesServer {
                 "text-rotation-alignment": "map"
               },
               "paint": {
-                "text-color": "#E61924",
+                "text-color": "#E2E8F0",
                 "text-halo-color": "#0C0D10",
-                "text-halo-width": 1.8
+                "text-halo-width": 2.0
               }
             },
             {

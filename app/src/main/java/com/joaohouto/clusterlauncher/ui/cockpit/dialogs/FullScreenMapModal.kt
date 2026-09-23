@@ -22,8 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Icon
@@ -64,6 +64,7 @@ import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextDisabled
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
+import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
@@ -83,6 +84,7 @@ import kotlin.math.roundToInt
 fun FullScreenMapModal(
     isDarkMode: Boolean = false,
     initialDarkMode: Boolean = isDarkMode,
+    followHeading: Boolean = false,
     onToggleDarkMode: ((Boolean) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
@@ -127,7 +129,8 @@ fun FullScreenMapModal(
                                 isInteractive = true,
                                 initialZoom = 17.0,
                                 primaryColor = primaryColor,
-                                darkColor = darkColor
+                                darkColor = darkColor,
+                                followVehicleHeading = followHeading
                             ) { map ->
                                 mapLibreMap = map
                                 map.addOnCameraMoveListener {
@@ -146,12 +149,29 @@ fun FullScreenMapModal(
                             mapView
                         },
                         update = { mapView ->
+                            val map = mapLibreMap
+                            if (map != null && !isMapPanned) {
+                                val lat = if (locationState.latitude != 0.0) locationState.latitude else -23.5505
+                                val lon = if (locationState.longitude != 0.0) locationState.longitude else -46.6333
+                                val targetBearing = if (followHeading) locationState.bearing.toDouble() else 0.0
+                                val currentZ = map.cameraPosition.zoom
+                                val bottomPad = if (followHeading) (mapView.height * 0.20) else 0.0
+
+                                val cameraPosition = CameraPosition.Builder()
+                                    .target(LatLng(lat, lon))
+                                    .zoom(currentZ)
+                                    .bearing(targetBearing)
+                                    .padding(0.0, 0.0, 0.0, bottomPad)
+                                    .build()
+                                map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 900)
+                            }
                             MapLibreMapHelper.updateVehicleLocation(
                                 mapView.context,
                                 mapLibreMap,
                                 locationState,
                                 primaryColor,
-                                darkColor
+                                darkColor,
+                                followVehicleHeading = followHeading
                             )
                         },
                         modifier = Modifier.fillMaxSize()
@@ -178,7 +198,8 @@ fun FullScreenMapModal(
                                 isDarkMode = initialDarkMode,
                                 initialZoom = 17.0,
                                 primaryColor = primaryColor,
-                                darkColor = darkColor
+                                darkColor = darkColor,
+                                followHeading = followHeading
                             )
 
                             mapView.addMapListener(object : MapListener {
@@ -206,9 +227,17 @@ fun FullScreenMapModal(
                                 mapView.overlayManager.tilesOverlay.setColorFilter(null)
                             }
 
+                            if (!isMapPanned) {
+                                val lat = if (locationState.latitude != 0.0) locationState.latitude else -23.5505
+                                val lon = if (locationState.longitude != 0.0) locationState.longitude else -46.6333
+                                mapView.controller.setCenter(GeoPoint(lat, lon))
+                                mapView.mapOrientation = if (followHeading) -locationState.bearing else 0f
+                            }
+
                             for (overlay in mapView.overlays) {
                                 if (overlay is VehicleMarkerOverlay) {
                                     overlay.location = locationState
+                                    overlay.followHeading = followHeading
                                     overlay.updateColors(primaryColor, darkColor)
                                     break
                                 }
@@ -235,38 +264,42 @@ fun FullScreenMapModal(
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val center = Offset(size.width / 2f, size.height / 2f)
                     val maxR = size.minDimension / 2.2f
+                    val radarBearing = if (followHeading) -locationState.bearing else 0f
+                    val arrowRotation = if (followHeading) 0f else locationState.bearing
 
-                    drawCircle(
-                        color = Color(0x18FFFFFF),
-                        radius = maxR,
-                        center = center,
-                        style = Stroke(width = 1.5f)
-                    )
-                    drawCircle(
-                        color = Color(0x10FFFFFF),
-                        radius = maxR * 0.65f,
-                        center = center,
-                        style = Stroke(width = 1f)
-                    )
-                    drawCircle(
-                        color = accentGlow,
-                        radius = maxR * 0.25f,
-                        center = center
-                    )
-                    drawLine(
-                        color = Color(0x20FFFFFF),
-                        start = Offset(center.x - maxR, center.y),
-                        end = Offset(center.x + maxR, center.y),
-                        strokeWidth = 1f
-                    )
-                    drawLine(
-                        color = Color(0x20FFFFFF),
-                        start = Offset(center.x, center.y - maxR),
-                        end = Offset(center.x, center.y + maxR),
-                        strokeWidth = 1f
-                    )
+                    rotate(degrees = radarBearing, pivot = center) {
+                        drawCircle(
+                            color = Color(0x18FFFFFF),
+                            radius = maxR,
+                            center = center,
+                            style = Stroke(width = 1.5f)
+                        )
+                        drawCircle(
+                            color = Color(0x10FFFFFF),
+                            radius = maxR * 0.65f,
+                            center = center,
+                            style = Stroke(width = 1f)
+                        )
+                        drawCircle(
+                            color = accentGlow,
+                            radius = maxR * 0.25f,
+                            center = center
+                        )
+                        drawLine(
+                            color = Color(0x20FFFFFF),
+                            start = Offset(center.x - maxR, center.y),
+                            end = Offset(center.x + maxR, center.y),
+                            strokeWidth = 1f
+                        )
+                        drawLine(
+                            color = Color(0x20FFFFFF),
+                            start = Offset(center.x, center.y - maxR),
+                            end = Offset(center.x, center.y + maxR),
+                            strokeWidth = 1f
+                        )
+                    }
 
-                    rotate(degrees = locationState.bearing, pivot = center) {
+                    rotate(degrees = arrowRotation, pivot = center) {
                         val arrowPath = Path().apply {
                             moveTo(center.x, center.y - 20f)
                             lineTo(center.x + 14f, center.y + 15f)
@@ -295,13 +328,11 @@ fun FullScreenMapModal(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val accent = LocalClusterAccent.current.primary
-
-                    // Botão Voltar Grande para uso automotivo
+                    // Botão Voltar Grande para uso automotivo com estilo neutro
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0xEE181A1F),
-                        border = BorderStroke(1.5.dp, accent.copy(alpha = 0.8f)),
+                        border = BorderStroke(1.dp, SurfaceCardBorder),
                         modifier = Modifier
                             .height(54.dp)
                             .clip(RoundedCornerShape(16.dp))
@@ -312,9 +343,9 @@ fun FullScreenMapModal(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = "Voltar",
-                                tint = accent,
+                                tint = TextPrimary,
                                 modifier = Modifier.size(28.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -392,12 +423,22 @@ fun FullScreenMapModal(
                                     mapLibreMap?.let { map ->
                                         val lat = if (locationState.latitude != 0.0) locationState.latitude else -23.5505
                                         val lon = if (locationState.longitude != 0.0) locationState.longitude else -46.6333
-                                        map.animateCamera(CameraUpdateFactory.newLatLng(LatLng(lat, lon)))
+                                        val targetBearing = if (followHeading) locationState.bearing.toDouble() else 0.0
+                                        val cameraPosition = CameraPosition.Builder()
+                                            .target(LatLng(lat, lon))
+                                            .bearing(targetBearing)
+                                            .build()
+                                        map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition))
                                     }
                                 } else {
-                                    osmdroidMapView?.controller?.animateTo(
-                                        GeoPoint(locationState.latitude, locationState.longitude)
-                                    )
+                                    osmdroidMapView?.let { mv ->
+                                        mv.controller.animateTo(
+                                            GeoPoint(locationState.latitude, locationState.longitude)
+                                        )
+                                        if (followHeading) {
+                                            mv.mapOrientation = -locationState.bearing
+                                        }
+                                    }
                                 }
                                 isMapPanned = false
                             }
