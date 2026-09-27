@@ -97,6 +97,39 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    val fullScreenMode: StateFlow<Boolean> = dockPreferences.getFullScreenModeFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    fun setFullScreenMode(enabled: Boolean) {
+        viewModelScope.launch {
+            dockPreferences.setFullScreenMode(enabled)
+        }
+    }
+
+    val bluetoothPackage: StateFlow<String?> = dockPreferences.getBluetoothPackageFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    fun setBluetoothPackage(packageName: String?) {
+        viewModelScope.launch {
+            dockPreferences.setBluetoothPackage(packageName)
+        }
+    }
+
+    fun launchBluetooth(context: Context) {
+        com.joaohouto.clusterlauncher.data.repository.AutomotivePackageResolver.launchBluetooth(
+            context = context,
+            preferredPackage = bluetoothPackage.value
+        )
+    }
+
     init {
         loadApps()
     }

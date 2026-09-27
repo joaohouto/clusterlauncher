@@ -105,4 +105,37 @@ class DockPreferences(private val context: Context) {
             preferences[MAP_FOLLOW_HEADING_KEY] = follow
         }
     }
+
+    private val FULL_SCREEN_MODE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("full_screen_mode")
+
+    fun getFullScreenModeFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[FULL_SCREEN_MODE_KEY] ?: false
+        }
+    }
+
+    suspend fun setFullScreenMode(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[FULL_SCREEN_MODE_KEY] = enabled
+        }
+    }
+
+    private val BLUETOOTH_PACKAGE_KEY = stringPreferencesKey("bluetooth_package")
+
+    fun getBluetoothPackageFlow(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[BLUETOOTH_PACKAGE_KEY]
+        }
+    }
+
+    suspend fun setBluetoothPackage(packageName: String?) {
+        context.dataStore.edit { preferences ->
+            if (packageName.isNullOrEmpty()) {
+                preferences.remove(BLUETOOTH_PACKAGE_KEY)
+            } else {
+                preferences[BLUETOOTH_PACKAGE_KEY] = packageName
+            }
+        }
+    }
 }
+

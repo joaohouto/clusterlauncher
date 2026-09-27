@@ -2,6 +2,7 @@ package com.joaohouto.clusterlauncher
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -36,13 +37,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
 import com.joaohouto.clusterlauncher.data.receiver.UsbStateReceiver
 import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.media.NotificationListenerHelper
 import com.joaohouto.clusterlauncher.ui.cockpit.CockpitScreen
+import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.BluetoothAppPickerModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.CarBrandPickerModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.LauncherSettingsModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.SlotAppPickerModal
@@ -53,6 +59,17 @@ import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.getAccentThemeById
 import kotlinx.coroutines.launch
+
+fun applyImmersiveMode(window: Window, isFullScreen: Boolean) {
+    val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+    if (isFullScreen) {
+        insetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        insetsController.hide(WindowInsetsCompat.Type.systemBars())
+    } else {
+        insetsController.show(WindowInsetsCompat.Type.systemBars())
+    }
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -77,13 +94,26 @@ class MainActivity : ComponentActivity() {
         setContent {
             val accentThemeId by appDrawerViewModel.accentThemeId.collectAsState()
             val currentAccent = remember(accentThemeId) { getAccentThemeById(accentThemeId) }
+            val fullScreenMode by appDrawerViewModel.fullScreenMode.collectAsState()
+
+            LaunchedEffect(fullScreenMode) {
+                applyImmersiveMode(window, fullScreenMode)
+            }
 
             ClusterLauncherTheme(accentTheme = currentAccent) {
                 LauncherMainContent(
                     viewModel = appDrawerViewModel,
-                    scrollToCockpitTrigger = scrollToCockpitTrigger
+                    scrollToCockpitTrigger = scrollToCockpitTrigger,
+                    fullScreenMode = fullScreenMode
                 )
             }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            applyImmersiveMode(window, appDrawerViewModel.fullScreenMode.value)
         }
     }
 
@@ -116,13 +146,16 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun LauncherMainContent(
     viewModel: AppDrawerViewModel,
-    scrollToCockpitTrigger: Int
+    scrollToCockpitTrigger: Int,
+    fullScreenMode: Boolean = false
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     val apps by viewModel.apps.collectAsState()
     val dockSlots by viewModel.dockSlots.collectAsState()
     val selectedCarBrand by viewModel.carBrand.collectAsState()
+    val bluetoothPackage by viewModel.bluetoothPackage.collectAsState()
     val showMapOnHome by viewModel.showMapOnHome.collectAsState()
     val mapDarkMode by viewModel.mapDarkMode.collectAsState()
     val mapFollowHeading by viewModel.mapFollowHeading.collectAsState()
@@ -140,6 +173,7 @@ private fun LauncherMainContent(
     var activeSlotForPicker by remember { mutableStateOf<DockSlot?>(null) }
     var showBrandPicker by remember { mutableStateOf(false) }
     var showSettingsModal by remember { mutableStateOf(false) }
+    var showBluetoothPicker by remember { mutableStateOf(false) }
 
     // React to Home button or onNewIntent
     LaunchedEffect(scrollToCockpitTrigger) {
@@ -171,12 +205,15 @@ private fun LauncherMainContent(
                     selectedCarBrand = selectedCarBrand,
                     onSlotLongClick = { slot -> activeSlotForPicker = slot },
                     onBrandClick = { showBrandPicker = true },
+                    onBluetoothClick = { viewModel.launchBluetooth(context) },
+                    onBluetoothLongClick = { showBluetoothPicker = true },
                     onSettingsClick = { showSettingsModal = true },
                     showMapOnHome = showMapOnHome,
                     isMapDarkMode = mapDarkMode,
                     onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
                     mapFollowHeading = mapFollowHeading,
-                    onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) }
+                    onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
+                    fullScreenMode = fullScreenMode
                 )
             } else {
                 val slideIndex = page - 1
@@ -247,11 +284,29 @@ private fun LauncherMainContent(
                 onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
                 mapFollowHeading = mapFollowHeading,
                 onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
+                fullScreenMode = fullScreenMode,
+                onToggleFullScreenMode = { viewModel.setFullScreenMode(it) },
+                bluetoothPackage = bluetoothPackage,
+                onSelectBluetoothPackage = { viewModel.setBluetoothPackage(it) },
+                onOpenBluetoothPicker = { showBluetoothPicker = true },
+                onTestBluetooth = { viewModel.launchBluetooth(context) },
                 onSelectBrandClick = {
                     showSettingsModal = false
                     showBrandPicker = true
                 },
                 onDismiss = { showSettingsModal = false }
+            )
+        }
+
+        if (showBluetoothPicker) {
+            BluetoothAppPickerModal(
+                apps = apps,
+                currentPackage = bluetoothPackage,
+                onAppSelected = { pkg ->
+                    viewModel.setBluetoothPackage(pkg)
+                    showBluetoothPicker = false
+                },
+                onDismiss = { showBluetoothPicker = false }
             )
         }
     }

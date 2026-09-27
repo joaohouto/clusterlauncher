@@ -34,12 +34,15 @@ fun CockpitScreen(
     selectedCarBrand: CarBrand,
     onSlotLongClick: (DockSlot) -> Unit,
     onBrandClick: () -> Unit,
+    onBluetoothClick: () -> Unit = {},
+    onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {},
     showMapOnHome: Boolean = true,
     isMapDarkMode: Boolean = false,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
     mapFollowHeading: Boolean = false,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
+    fullScreenMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showFullScreenMap by remember { mutableStateOf(false) }
@@ -81,6 +84,8 @@ fun CockpitScreen(
                 SystemStatusRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    onBluetoothClick = onBluetoothClick,
+                    onBluetoothLongClick = onBluetoothLongClick,
                     onSettingsClick = onSettingsClick
                 )
             }
@@ -128,6 +133,7 @@ fun CockpitScreen(
         FullScreenMapModal(
             initialDarkMode = isMapDarkMode,
             followHeading = mapFollowHeading,
+            fullScreenMode = fullScreenMode,
             onToggleDarkMode = onToggleMapDarkMode,
             onDismiss = { showFullScreenMap = false }
         )

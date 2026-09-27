@@ -180,12 +180,17 @@ object MapLibreMapHelper {
             style.addImage(VEHICLE_ICON_ID, bitmap)
         }
 
-        val lat = if (location.latitude != 0.0) location.latitude else -23.5505
-        val lon = if (location.longitude != 0.0) location.longitude else -46.6333
+        val targetLat = if (location.latitude != 0.0) location.latitude else -23.5505
+        val targetLon = if (location.longitude != 0.0) location.longitude else -46.6333
         val hasValidLocation = (location.latitude != 0.0 || location.longitude != 0.0)
 
         val source = style.getSourceAs<GeoJsonSource>(VEHICLE_SOURCE_ID)
         val layer = style.getLayerAs<SymbolLayer>(VEHICLE_LAYER_ID)
+
+        if (source == null || layer == null) {
+            setupVehicleMarker(context, style, location, primaryColor, darkColor, followVehicleHeading)
+            return
+        }
 
         val iconRotation = if (followVehicleHeading) 0f else location.bearing
         val rotationAlignment = if (followVehicleHeading) {
@@ -194,15 +199,15 @@ object MapLibreMapHelper {
             Property.ICON_ROTATION_ALIGNMENT_MAP
         }
 
-        if (source != null && layer != null) {
-            source.setGeoJson(Point.fromLngLat(lon, lat))
+        try {
+            source.setGeoJson(Point.fromLngLat(targetLon, targetLat))
             layer.setProperties(
                 PropertyFactory.iconRotate(iconRotation),
                 PropertyFactory.iconRotationAlignment(rotationAlignment),
                 PropertyFactory.iconOpacity(if (hasValidLocation) 1.0f else 0.7f)
             )
-        } else {
-            setupVehicleMarker(context, style, location, primaryColor, darkColor, followVehicleHeading)
+        } catch (e: Exception) {
+            Log.w(TAG, "Falha ao atualizar marcador do veículo no MapLibre: ${e.message}")
         }
     }
 

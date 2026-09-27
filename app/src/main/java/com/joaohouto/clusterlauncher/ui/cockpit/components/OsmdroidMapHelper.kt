@@ -141,6 +141,7 @@ object OsmdroidMapHelper {
 /**
  * Overlay de renderização da seta de posição e direção do veículo no osmdroid.
  * A borda branca foi substituída pelo tom escuro da accent color.
+ * Mantém o veículo sempre rigorosamente centralizado no mapa.
  */
 class VehicleMarkerOverlay(
     var location: GpsLocationData,

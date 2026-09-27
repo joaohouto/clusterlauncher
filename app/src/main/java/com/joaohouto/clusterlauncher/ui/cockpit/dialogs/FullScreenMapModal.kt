@@ -1,5 +1,6 @@
 package com.joaohouto.clusterlauncher.ui.cockpit.dialogs
 
+import android.view.MotionEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -13,12 +14,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,6 +54,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,6 +62,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.location.GpsLocationRepository
 import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
@@ -86,6 +99,7 @@ fun FullScreenMapModal(
     isDarkMode: Boolean = false,
     initialDarkMode: Boolean = isDarkMode,
     followHeading: Boolean = false,
+    fullScreenMode: Boolean = false,
     onToggleDarkMode: ((Boolean) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
@@ -107,6 +121,20 @@ fun FullScreenMapModal(
             decorFitsSystemWindows = false
         )
     ) {
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.let { win ->
+                val insetsController = WindowCompat.getInsetsController(win, win.decorView)
+                if (fullScreenMode) {
+                    insetsController.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                } else {
+                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -134,21 +162,20 @@ fun FullScreenMapModal(
                                 followVehicleHeading = followHeading
                             ) { map ->
                                 mapLibreMap = map
-                                map.addOnCameraMoveListener {
-                                    currentZoom = map.cameraPosition.zoom.roundToInt()
-                                    val camTarget = map.cameraPosition.target
-                                    if (camTarget != null) {
-                                        val projected = MapProjectionHelper.calculateRoadAheadTarget(
-                                            location = locationState,
-                                            followHeading = followHeading,
-                                            zoom = currentZoom.toDouble(),
-                                            viewportHeightPx = mapLibreMapView?.height?.takeIf { it > 0 } ?: 600
-                                        )
-                                        val latDiff = Math.abs(camTarget.latitude - projected.latitude)
-                                        val lonDiff = Math.abs(camTarget.longitude - projected.longitude)
-                                        isMapPanned = (latDiff > 0.0015 || lonDiff > 0.0015)
+                                map.addOnCameraMoveStartedListener { reason ->
+                                    if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                                        isMapPanned = true
                                     }
                                 }
+                                map.addOnCameraMoveListener {
+                                    currentZoom = map.cameraPosition.zoom.roundToInt()
+                                }
+                            }
+                            mapView.setOnTouchListener { _, event ->
+                                if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_MOVE) {
+                                    isMapPanned = true
+                                }
+                                false
                             }
                             mapLibreMapView = mapView
                             mapView
@@ -208,20 +235,15 @@ fun FullScreenMapModal(
                                 followHeading = followHeading
                             )
 
-                            mapView.addMapListener(object : MapListener {
-                                override fun onScroll(event: ScrollEvent?): Boolean {
-                                    val center = mapView.mapCenter
-                                    val projected = MapProjectionHelper.calculateRoadAheadTarget(
-                                        location = locationState,
-                                        followHeading = followHeading,
-                                        zoom = mapView.zoomLevelDouble,
-                                        viewportHeightPx = if (mapView.height > 0) mapView.height else 600
-                                    )
-                                    val latDiff = Math.abs(center.latitude - projected.latitude)
-                                    val lonDiff = Math.abs(center.longitude - projected.longitude)
-                                    isMapPanned = (latDiff > 0.0015 || lonDiff > 0.0015)
-                                    return false
+                            mapView.setOnTouchListener { _, event ->
+                                if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_MOVE) {
+                                    isMapPanned = true
                                 }
+                                false
+                            }
+
+                            mapView.addMapListener(object : MapListener {
+                                override fun onScroll(event: ScrollEvent?): Boolean = false
 
                                 override fun onZoom(event: ZoomEvent?): Boolean {
                                     currentZoom = mapView.zoomLevelDouble.roundToInt()
@@ -335,7 +357,8 @@ fun FullScreenMapModal(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
-                    .padding(16.dp),
+                    .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout))
+                    .padding(start = 24.dp, top = 18.dp, end = 24.dp),
                 horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -415,7 +438,8 @@ fun FullScreenMapModal(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(20.dp),
+                    .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.displayCutout))
+                    .padding(end = 24.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -489,6 +513,7 @@ fun FullScreenMapModal(
                                 .size(62.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .clickable {
+                                    isMapPanned = true
                                     if (mapState.isVectorMap) {
                                         mapLibreMap?.let { map ->
                                             map.animateCamera(CameraUpdateFactory.zoomIn())
@@ -522,6 +547,7 @@ fun FullScreenMapModal(
                                 .size(62.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .clickable {
+                                    isMapPanned = true
                                     if (mapState.isVectorMap) {
                                         mapLibreMap?.let { map ->
                                             map.animateCamera(CameraUpdateFactory.zoomOut())

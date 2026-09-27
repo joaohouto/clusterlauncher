@@ -38,6 +38,8 @@ import com.joaohouto.clusterlauncher.ui.theme.TextDisabled
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 
@@ -46,6 +48,8 @@ import androidx.compose.foundation.layout.FlowRow
 fun SystemStatusRow(
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+    onBluetoothClick: () -> Unit = {},
+    onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {}
 ) {
     val isBluetoothConnected by BluetoothStateReceiver.isBluetoothConnected.collectAsState()
@@ -58,7 +62,9 @@ fun SystemStatusRow(
         StatusBadge(
             icon = if (isBluetoothConnected) Icons.Rounded.BluetoothConnected else Icons.Rounded.Bluetooth,
             label = if (isBluetoothConnected) stringResource(R.string.bluetooth_connected) else stringResource(R.string.bluetooth_disconnected),
-            isActive = isBluetoothConnected
+            isActive = isBluetoothConnected,
+            onClick = onBluetoothClick,
+            onLongClick = onBluetoothLongClick
         )
         ActionBadge(
             icon = Icons.Rounded.Settings,
@@ -68,22 +74,30 @@ fun SystemStatusRow(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun StatusBadge(
     icon: ImageVector,
     label: String,
     isActive: Boolean,
+    onClick: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val accent = LocalClusterAccent.current.primary
     val tint = if (isActive) accent else TextDisabled
     val textColor = if (isActive) TextPrimary else TextDisabled
+    val borderColor = if (isActive) accent.copy(alpha = 0.5f) else SurfaceCardBorder
 
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
             .background(SurfaceCard)
-            .border(1.dp, SurfaceCardBorder, RoundedCornerShape(20.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

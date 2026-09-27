@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDownload
@@ -75,6 +76,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.joaohouto.clusterlauncher.R
@@ -85,6 +92,7 @@ import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
 import com.joaohouto.clusterlauncher.data.map.MapFileInfo
 import com.joaohouto.clusterlauncher.data.map.TileProvider
 import com.joaohouto.clusterlauncher.data.model.CarBrand
+import com.joaohouto.clusterlauncher.data.repository.AutomotivePackageResolver
 import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.ui.theme.ALL_ACCENT_THEMES
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
@@ -99,10 +107,10 @@ import com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-private enum class SettingsTab(val title: String, val icon: ImageVector) {
-    MAPS("Mapas", Icons.Rounded.Map),
-    VEHICLE("Veículo", Icons.Rounded.DirectionsCar),
-    SYSTEM("Sistema", Icons.Rounded.Settings)
+private enum class SettingsTab(val titleRes: Int, val icon: ImageVector) {
+    MAPS(R.string.tab_maps, Icons.Rounded.Map),
+    VEHICLE(R.string.tab_vehicle, Icons.Rounded.DirectionsCar),
+    SYSTEM(R.string.tab_system, Icons.Rounded.Settings)
 }
 
 /**
@@ -120,6 +128,12 @@ fun LauncherSettingsModal(
     onToggleMapDarkMode: (Boolean) -> Unit = {},
     mapFollowHeading: Boolean = false,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
+    fullScreenMode: Boolean = false,
+    onToggleFullScreenMode: (Boolean) -> Unit = {},
+    bluetoothPackage: String? = null,
+    onSelectBluetoothPackage: (String?) -> Unit = {},
+    onOpenBluetoothPicker: () -> Unit = {},
+    onTestBluetooth: () -> Unit = {},
     onSelectBrandClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -163,6 +177,20 @@ fun LauncherSettingsModal(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.let { win ->
+                val insetsController = WindowCompat.getInsetsController(win, win.decorView)
+                if (fullScreenMode) {
+                    insetsController.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                } else {
+                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                }
+            }
+        }
+
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
@@ -230,13 +258,13 @@ fun LauncherSettingsModal(
                             ) {
                                 Icon(
                                     imageVector = tab.icon,
-                                    contentDescription = tab.title,
+                                    contentDescription = stringResource(tab.titleRes),
                                     tint = contentColor,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
-                                    text = tab.title,
+                                    text = stringResource(tab.titleRes),
                                     color = contentColor,
                                     fontSize = 14.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
@@ -348,8 +376,14 @@ fun LauncherSettingsModal(
                             onToggleMapDarkMode = onToggleMapDarkMode,
                             mapFollowHeading = mapFollowHeading,
                             onToggleMapFollowHeading = onToggleMapFollowHeading,
+                            fullScreenMode = fullScreenMode,
+                            onToggleFullScreenMode = onToggleFullScreenMode,
                             isDefaultLauncher = isDefaultLauncher,
                             onSetDefaultLauncher = { DefaultLauncherHelper.requestSetDefaultLauncher(context) },
+                            bluetoothPackage = bluetoothPackage,
+                            onSelectBluetoothPackage = onSelectBluetoothPackage,
+                            onOpenBluetoothPicker = onOpenBluetoothPicker,
+                            onTestBluetooth = onTestBluetooth,
                             hasGpsPermission = hasGpsPermission,
                             isMediaPermissionGranted = mediaState.isPermissionGranted,
                             onOpenAppSettings = {
@@ -1029,8 +1063,14 @@ private fun SystemSettingsPanel(
     onToggleMapDarkMode: (Boolean) -> Unit,
     mapFollowHeading: Boolean,
     onToggleMapFollowHeading: (Boolean) -> Unit,
+    fullScreenMode: Boolean,
+    onToggleFullScreenMode: (Boolean) -> Unit,
     isDefaultLauncher: Boolean,
     onSetDefaultLauncher: () -> Unit,
+    bluetoothPackage: String? = null,
+    onSelectBluetoothPackage: (String?) -> Unit = {},
+    onOpenBluetoothPicker: () -> Unit = {},
+    onTestBluetooth: () -> Unit = {},
     hasGpsPermission: Boolean,
     isMediaPermissionGranted: Boolean,
     onOpenAppSettings: () -> Unit,
@@ -1048,13 +1088,13 @@ private fun SystemSettingsPanel(
     ) {
         Column {
             Text(
-                text = "Preferências & Sistema",
+                text = stringResource(R.string.system_title),
                 color = TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Ajustes de visualização do Cockpit e integrações do Android.",
+                text = stringResource(R.string.system_preferences_subtitle),
                 color = TextSecondary,
                 fontSize = 12.sp
             )
@@ -1069,7 +1109,7 @@ private fun SystemSettingsPanel(
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
-                    text = "Aparência do Cockpit",
+                    text = stringResource(R.string.appearance_cockpit_title),
                     color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
@@ -1082,8 +1122,8 @@ private fun SystemSettingsPanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Exibir Mapa na Tela Inicial", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        Text(text = "Mostra o card de mapa ao lado do reprodutor", color = TextDisabled, fontSize = 11.sp)
+                        Text(text = stringResource(R.string.show_map_on_home), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(text = stringResource(R.string.show_map_on_home_desc), color = TextDisabled, fontSize = 11.sp)
                     }
                     Switch(
                         checked = showMapOnHome,
@@ -1104,8 +1144,8 @@ private fun SystemSettingsPanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Tema Noturno de Alto Contraste", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        Text(text = "Aplica filtro escuro esportivo no mapa raster", color = TextDisabled, fontSize = 11.sp)
+                        Text(text = stringResource(R.string.map_dark_mode), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(text = stringResource(R.string.map_dark_mode_desc), color = TextDisabled, fontSize = 11.sp)
                     }
                     Switch(
                         checked = isMapDarkMode,
@@ -1126,12 +1166,34 @@ private fun SystemSettingsPanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Travar Indicador no Topo (Heading-Up)", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        Text(text = "Seta fixa apontando para cima enquanto o mapa rotaciona com o veículo", color = TextDisabled, fontSize = 11.sp)
+                        Text(text = stringResource(R.string.map_follow_heading), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(text = stringResource(R.string.map_follow_heading_desc), color = TextDisabled, fontSize = 11.sp)
                     }
                     Switch(
                         checked = mapFollowHeading,
                         onCheckedChange = onToggleMapFollowHeading,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
+                    )
+                }
+
+                // Toggle: Modo Tela Cheia Imersivo
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = stringResource(R.string.fullscreen_mode), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(text = stringResource(R.string.fullscreen_mode_desc), color = TextDisabled, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = fullScreenMode,
+                        onCheckedChange = onToggleFullScreenMode,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = accent,
@@ -1167,13 +1229,13 @@ private fun SystemSettingsPanel(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Início Padrão do Veículo",
+                            text = stringResource(R.string.default_launcher_title),
                             color = TextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = if (isDefaultLauncher) "ClusterLauncher está ativo como launcher padrão" else "Defina o ClusterLauncher como padrão ao ligar o carro",
+                            text = stringResource(if (isDefaultLauncher) R.string.default_launcher_active_desc else R.string.default_launcher_inactive_desc),
                             color = if (isDefaultLauncher) Color(0xFF81C784) else TextDisabled,
                             fontSize = 11.sp
                         )
@@ -1189,12 +1251,119 @@ private fun SystemSettingsPanel(
                     border = BorderStroke(1.dp, SurfaceCardBorder)
                 ) {
                     Text(
-                        text = if (isDefaultLauncher) "Alterar" else "Definir",
+                        text = stringResource(if (isDefaultLauncher) R.string.btn_change else R.string.btn_set),
                         color = TextPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                     )
+                }
+            }
+        }
+
+        // Cartão: Conectividade Bluetooth da Multimídia
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.bluetooth_app_title),
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = Icons.Rounded.Bluetooth,
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            val displayLabel = remember(bluetoothPackage) {
+                                AutomotivePackageResolver.resolveBluetoothAppInfo(context, bluetoothPackage)
+                            }
+                            Text(
+                                text = stringResource(R.string.bluetooth_app_subtitle),
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = displayLabel,
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!bluetoothPackage.isNullOrEmpty()) {
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onSelectBluetoothPackage(null) },
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF1E222B),
+                                border = BorderStroke(1.dp, SurfaceCardBorder)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.btn_auto),
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onOpenBluetoothPicker() },
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF1E222B),
+                            border = BorderStroke(1.dp, SurfaceCardBorder)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.btn_change),
+                                color = TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            )
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onTestBluetooth() },
+                            shape = RoundedCornerShape(8.dp),
+                            color = accent.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, accent.copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                text = stringResource(R.string.btn_open),
+                                color = accent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1211,7 +1380,7 @@ private fun SystemSettingsPanel(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Permissões do Painel",
+                    text = stringResource(R.string.permissions_panel_title),
                     color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
@@ -1223,9 +1392,9 @@ private fun SystemSettingsPanel(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Acesso ao GPS", color = TextSecondary, fontSize = 13.sp)
+                    Text(text = stringResource(R.string.permission_location), color = TextSecondary, fontSize = 13.sp)
                     if (hasGpsPermission) {
-                        Text(text = "Concedida", color = Color(0xFF4CAF50), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = stringResource(R.string.permission_granted), color = Color(0xFF4CAF50), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     } else {
                         Surface(
                             modifier = Modifier.clickable { onOpenAppSettings() },
@@ -1233,7 +1402,7 @@ private fun SystemSettingsPanel(
                             color = Color(0xFF1E222B),
                             border = BorderStroke(1.dp, SurfaceCardBorder)
                         ) {
-                            Text(text = "Conceder", color = accent, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+                            Text(text = stringResource(R.string.btn_grant), color = accent, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
                         }
                     }
                 }
@@ -1244,9 +1413,9 @@ private fun SystemSettingsPanel(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Controle de Mídia", color = TextSecondary, fontSize = 13.sp)
+                    Text(text = stringResource(R.string.permission_media), color = TextSecondary, fontSize = 13.sp)
                     if (isMediaPermissionGranted) {
-                        Text(text = "Concedida", color = Color(0xFF4CAF50), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = stringResource(R.string.permission_granted), color = Color(0xFF4CAF50), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     } else {
                         Surface(
                             modifier = Modifier.clickable { onOpenNotificationListenerSettings() },
@@ -1254,7 +1423,7 @@ private fun SystemSettingsPanel(
                             color = Color(0xFF1E222B),
                             border = BorderStroke(1.dp, SurfaceCardBorder)
                         ) {
-                            Text(text = "Conceder", color = accent, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+                            Text(text = stringResource(R.string.btn_grant), color = accent, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
                         }
                     }
                 }

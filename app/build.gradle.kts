@@ -11,8 +11,8 @@ android {
         applicationId = "com.joaohouto.clusterlauncher"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.2.2"
+        versionCode = 7
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -85,6 +85,7 @@ project.afterEvaluate {
             val targetApk = File(apkDir, if (isRelease) "ClusterLauncher-v${android.defaultConfig.versionName}.apk" else "ClusterLauncher-v${android.defaultConfig.versionName}-debug.apk")
             if (defaultApk.exists()) {
                 defaultApk.copyTo(targetApk, overwrite = true)
+                defaultApk.copyTo(File(apkDir, if (isRelease) "ClusterLauncher.apk" else "ClusterLauncher-debug.apk"), overwrite = true)
                 println("APK generated: ${targetApk.name}")
             }
         }

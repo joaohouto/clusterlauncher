@@ -4,19 +4,17 @@ Este documento lista melhorias de harmonização arquitetural e técnica com o e
 
 ---
 
-## 1. Internacionalização (i18n)
+## 1. Internacionalização (i18n) [CONCLUÍDO]
 
-* **Problema Atual:** O arquivo `app/src/main/res/values/strings.xml` contém diretamente as strings em português (idioma padrão do projeto).
-* **Solução Necessária:**
-  1. Mover todas as strings em português para um novo diretório localizado: `app/src/main/res/values-pt/strings.xml`.
-  2. Traduzir e manter as strings padrão em inglês no arquivo base: `app/src/main/res/values/strings.xml`.
-  3. Isso garantirá compatibilidade com centrais multimídia configuradas em outros idiomas (inglês, espanhol, etc.) sem exibir textos fixos em português.
+* **Status:** Concluído com sucesso.
+* `app/src/main/res/values/strings.xml` contém as strings base em inglês.
+* `app/src/main/res/values-pt/strings.xml` contém a localização completa em português.
 
 ---
 
-## 2. Harmonização de Temas de Cockpit
+## 2. Harmonização de Temas de Cockpit [CONCLUÍDO]
 
-* Assegurar que os mesmos 7 temas de iluminação de instrumentos (*Cluster Accent Themes*) estejam disponíveis em paridade com ClusterPlayer e ClusterRadio:
+* Os 7 temas de iluminação de instrumentos (*Cluster Accent Themes*) estão em plena paridade com ClusterPlayer e ClusterRadio:
   - `needle_red` (`#E61924`)
   - `m_sport_blue` (`#0088FF`)
   - `racing_yellow` (`#FFCC00`)
