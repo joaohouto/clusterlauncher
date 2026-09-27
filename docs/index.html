@@ -699,10 +699,10 @@
                 <h3>Cluster Launcher</h3>
                 <div class="badges-row">
                   <span class="meta-badge highlight" id="launcher-card-ver"
-                    >v1.2.2</span
+                    >v1.3.0</span
                   >
                   <span class="meta-badge" id="launcher-card-size"
-                    >1.85 MB</span
+                    >44.0 MB</span
                   >
                   <span class="meta-badge">Home App</span>
                 </div>
@@ -717,7 +717,7 @@
 
             <div class="card-actions">
               <a
-                href="https://github.com/joaohouto/clusterlauncher/releases/download/v1.2.2/ClusterLauncher-v1.2.2.apk"
+                href="https://github.com/joaohouto/clusterlauncher/releases/download/v1.3.0/ClusterLauncher-v1.3.0.apk"
                 class="btn-card-download"
                 id="launcher-card-download"
               >
@@ -736,7 +736,7 @@
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 <span id="launcher-card-btn-text"
-                  >Baixar Launcher APK (v1.2.2)</span
+                  >Baixar Launcher APK (v1.3.0)</span
                 >
               </a>
               <a
@@ -760,7 +760,7 @@
                 <h3>Cluster Player</h3>
                 <div class="badges-row">
                   <span class="meta-badge highlight" id="player-card-ver"
-                    >v1.1.2</span
+                    >v1.2.0</span
                   >
                   <span class="meta-badge" id="player-card-size">3.47 MB</span>
                   <span class="meta-badge">Música USB</span>
@@ -777,7 +777,7 @@
 
             <div class="card-actions">
               <a
-                href="https://github.com/joaohouto/clusterplayer/releases/download/v1.1.2/ClusterPlayer-v1.1.2.apk"
+                href="https://github.com/joaohouto/clusterplayer/releases/download/v1.2.0/ClusterPlayer-v1.2.0.apk"
                 class="btn-card-download"
                 id="player-card-download"
               >
@@ -796,7 +796,7 @@
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 <span id="player-card-btn-text"
-                  >Baixar Player APK (v1.1.2)</span
+                  >Baixar Player APK (v1.2.0)</span
                 >
               </a>
               <a
@@ -820,9 +820,9 @@
                 <h3>Cluster Radio</h3>
                 <div class="badges-row">
                   <span class="meta-badge highlight" id="radio-card-ver"
-                    >v1.0.0</span
+                    >v1.1.0</span
                   >
-                  <span class="meta-badge" id="radio-card-size">~2.8 MB</span>
+                  <span class="meta-badge" id="radio-card-size">2.67 MB</span>
                   <span class="meta-badge">Rádio AM/FM</span>
                 </div>
               </div>
@@ -837,7 +837,7 @@
 
             <div class="card-actions">
               <a
-                href="https://github.com/joaohouto/clusterradio/releases/download/v1.0.0/ClusterRadio-v1.0.0.apk"
+                href="https://github.com/joaohouto/clusterradio/releases/download/v1.1.0/ClusterRadio-v1.1.0.apk"
                 class="btn-card-download"
                 id="radio-card-download"
               >
@@ -856,7 +856,7 @@
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 <span id="radio-card-btn-text"
-                  >Baixar Radio APK (v1.0.0)</span
+                  >Baixar Radio APK (v1.1.0)</span
                 >
               </a>
               <a
@@ -1121,7 +1121,7 @@
             if (apkAsset && apkAsset.browser_download_url) {
               var downloadUrl = apkAsset.browser_download_url;
               var sizeText = formatBytes(apkAsset.size);
-              var ver = data.tag_name || "v1.2.2";
+              var ver = data.tag_name || "v1.3.0";
 
               // Atualiza o botão do Hero
               var heroBtn = document.getElementById("launcher-hero-btn");
@@ -1175,7 +1175,7 @@
             if (apkAsset && apkAsset.browser_download_url) {
               var downloadUrl = apkAsset.browser_download_url;
               var sizeText = formatBytes(apkAsset.size);
-              var ver = data.tag_name || "v1.1.2";
+              var ver = data.tag_name || "v1.2.0";
 
               // Atualiza o botão do Hero
               var heroBtn = document.getElementById("player-hero-btn");
@@ -1227,7 +1227,7 @@
             if (apkAsset && apkAsset.browser_download_url) {
               var downloadUrl = apkAsset.browser_download_url;
               var sizeText = formatBytes(apkAsset.size);
-              var ver = data.tag_name || "v1.0.0";
+              var ver = data.tag_name || "v1.1.0";
 
               var cardDownload = document.getElementById(
                 "radio-card-download",
