@@ -50,6 +50,7 @@ import com.joaohouto.clusterlauncher.media.NotificationListenerHelper
 import com.joaohouto.clusterlauncher.ui.cockpit.CockpitScreen
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.BluetoothAppPickerModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.CarBrandPickerModal
+import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.FullScreenMapModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.LauncherSettingsModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.SlotAppPickerModal
 import com.joaohouto.clusterlauncher.ui.drawer.AppDrawerViewModel
@@ -60,14 +61,17 @@ import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.getAccentThemeById
 import kotlinx.coroutines.launch
 
+@Suppress("DEPRECATION")
 fun applyImmersiveMode(window: Window, isFullScreen: Boolean) {
     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
     if (isFullScreen) {
         insetsController.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
     } else {
         insetsController.show(WindowInsetsCompat.Type.systemBars())
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
     }
 }
 
@@ -75,11 +79,13 @@ class MainActivity : ComponentActivity() {
 
     private val appDrawerViewModel: AppDrawerViewModel by viewModels()
     private var scrollToCockpitTrigger by mutableIntStateOf(0)
+    private var isFullScreenMapOpen by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val darkColor = DeepMetallicBackground.toArgb()
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(darkColor))
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(darkColor),
             navigationBarStyle = SystemBarStyle.dark(darkColor)
@@ -96,15 +102,18 @@ class MainActivity : ComponentActivity() {
             val currentAccent = remember(accentThemeId) { getAccentThemeById(accentThemeId) }
             val fullScreenMode by appDrawerViewModel.fullScreenMode.collectAsState()
 
-            LaunchedEffect(fullScreenMode) {
-                applyImmersiveMode(window, fullScreenMode)
+            LaunchedEffect(fullScreenMode, isFullScreenMapOpen) {
+                applyImmersiveMode(window, fullScreenMode || isFullScreenMapOpen)
             }
 
             ClusterLauncherTheme(accentTheme = currentAccent) {
                 LauncherMainContent(
                     viewModel = appDrawerViewModel,
                     scrollToCockpitTrigger = scrollToCockpitTrigger,
-                    fullScreenMode = fullScreenMode
+                    fullScreenMode = fullScreenMode,
+                    showFullScreenMap = isFullScreenMapOpen,
+                    onOpenFullScreenMap = { isFullScreenMapOpen = true },
+                    onCloseFullScreenMap = { isFullScreenMapOpen = false }
                 )
             }
         }
@@ -113,7 +122,7 @@ class MainActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
-            applyImmersiveMode(window, appDrawerViewModel.fullScreenMode.value)
+            applyImmersiveMode(window, appDrawerViewModel.fullScreenMode.value || isFullScreenMapOpen)
         }
     }
 
@@ -138,6 +147,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         // Whenever Home intent or new intent is received, scroll back to cockpit
+        isFullScreenMapOpen = false
         scrollToCockpitTrigger++
     }
 }
@@ -147,7 +157,10 @@ class MainActivity : ComponentActivity() {
 private fun LauncherMainContent(
     viewModel: AppDrawerViewModel,
     scrollToCockpitTrigger: Int,
-    fullScreenMode: Boolean = false
+    fullScreenMode: Boolean = false,
+    showFullScreenMap: Boolean = false,
+    onOpenFullScreenMap: () -> Unit = {},
+    onCloseFullScreenMap: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -160,6 +173,9 @@ private fun LauncherMainContent(
     val mapDarkMode by viewModel.mapDarkMode.collectAsState()
     val mapFollowHeading by viewModel.mapFollowHeading.collectAsState()
     val accentThemeId by viewModel.accentThemeId.collectAsState()
+    val mediaCardPosition by viewModel.mediaCardPosition.collectAsState()
+    val swapCockpitColumns by viewModel.swapCockpitColumns.collectAsState()
+    val hideMediaWhenNotPlaying by viewModel.hideMediaWhenNotPlaying.collectAsState()
     val accent = LocalClusterAccent.current.primary
 
     val appSlides = remember(apps) {
@@ -182,10 +198,14 @@ private fun LauncherMainContent(
         }
     }
 
-    // BackHandler: if on any Drawer slide (page >= 1), return to Cockpit (page 0); if on Cockpit, do nothing
-    BackHandler(enabled = pagerState.currentPage != 0) {
-        coroutineScope.launch {
-            pagerState.animateScrollToPage(0)
+    // BackHandler: if on full screen map, close it; if on Drawer, return to Cockpit
+    BackHandler(enabled = showFullScreenMap || pagerState.currentPage != 0) {
+        if (showFullScreenMap) {
+            onCloseFullScreenMap()
+        } else {
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(0)
+            }
         }
     }
 
@@ -193,10 +213,13 @@ private fun LauncherMainContent(
         modifier = Modifier
             .fillMaxSize()
             .background(DeepMetallicBackground)
-            .safeDrawingPadding()
+            .then(
+                if (fullScreenMode || showFullScreenMap) Modifier else Modifier.safeDrawingPadding()
+            )
     ) {
         HorizontalPager(
             state = pagerState,
+            userScrollEnabled = !showFullScreenMap,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             if (page == 0) {
@@ -208,12 +231,16 @@ private fun LauncherMainContent(
                     onBluetoothClick = { viewModel.launchBluetooth(context) },
                     onBluetoothLongClick = { showBluetoothPicker = true },
                     onSettingsClick = { showSettingsModal = true },
+                    onOpenFullScreenMap = onOpenFullScreenMap,
                     showMapOnHome = showMapOnHome,
                     isMapDarkMode = mapDarkMode,
                     onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
                     mapFollowHeading = mapFollowHeading,
                     onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
-                    fullScreenMode = fullScreenMode
+                    fullScreenMode = fullScreenMode,
+                    mediaCardPosition = mediaCardPosition,
+                    swapCockpitColumns = swapCockpitColumns,
+                    hideMediaWhenNotPlaying = hideMediaWhenNotPlaying
                 )
             } else {
                 val slideIndex = page - 1
@@ -286,6 +313,12 @@ private fun LauncherMainContent(
                 onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
                 fullScreenMode = fullScreenMode,
                 onToggleFullScreenMode = { viewModel.setFullScreenMode(it) },
+                mediaCardPosition = mediaCardPosition,
+                onSelectMediaCardPosition = { viewModel.setMediaCardPosition(it) },
+                swapCockpitColumns = swapCockpitColumns,
+                onToggleSwapCockpitColumns = { viewModel.setSwapCockpitColumns(it) },
+                hideMediaWhenNotPlaying = hideMediaWhenNotPlaying,
+                onToggleHideMediaWhenNotPlaying = { viewModel.setHideMediaWhenNotPlaying(it) },
                 bluetoothPackage = bluetoothPackage,
                 onSelectBluetoothPackage = { viewModel.setBluetoothPackage(it) },
                 onOpenBluetoothPicker = { showBluetoothPicker = true },
@@ -307,6 +340,16 @@ private fun LauncherMainContent(
                     showBluetoothPicker = false
                 },
                 onDismiss = { showBluetoothPicker = false }
+            )
+        }
+
+        if (showFullScreenMap) {
+            FullScreenMapModal(
+                initialDarkMode = mapDarkMode,
+                followHeading = mapFollowHeading,
+                fullScreenMode = fullScreenMode || showFullScreenMap,
+                onToggleDarkMode = { viewModel.setMapDarkMode(it) },
+                onDismiss = onCloseFullScreenMap
             )
         }
     }

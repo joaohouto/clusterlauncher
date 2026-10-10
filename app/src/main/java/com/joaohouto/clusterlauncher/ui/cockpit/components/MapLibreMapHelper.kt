@@ -9,11 +9,13 @@ import android.graphics.Path
 import android.util.Log
 import com.joaohouto.clusterlauncher.data.location.GpsLocationData
 import com.joaohouto.clusterlauncher.data.map.LocalMBTilesServer
+import android.graphics.drawable.ColorDrawable
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.Property
@@ -231,7 +233,14 @@ object MapLibreMapHelper {
         LocalMBTilesServer.setSource(mbtilesFile)
         LocalMBTilesServer.start()
 
-        val mapView = MapView(context)
+        val mapOptions = MapLibreMapOptions.createFromAttributes(context)
+            .foregroundLoadColor(Color.parseColor("#0C0D10"))
+            .textureMode(true)
+            .translucentTextureSurface(false)
+
+        val mapView = MapView(context, mapOptions)
+        mapView.setBackgroundColor(Color.parseColor("#0C0D10"))
+        mapView.foreground = ColorDrawable(Color.parseColor("#0C0D10"))
         mapView.onCreate(null)
         mapView.onStart()
         mapView.onResume()

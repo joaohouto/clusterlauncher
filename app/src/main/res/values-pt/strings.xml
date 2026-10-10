@@ -49,6 +49,14 @@
     <string name="map_follow_heading_desc">Gira o mapa conforme a direção (bússola) do veículo</string>
     <string name="fullscreen_mode">Modo Tela Cheia</string>
     <string name="fullscreen_mode_desc">Oculta a barra de status e botões de navegação</string>
+    <string name="media_card_position_title">Posição do Card de Mídia</string>
+    <string name="media_card_position_desc">Na esquerda, o mapa aproveita 100% da altura da coluna direita</string>
+    <string name="media_pos_right">Direita (Padrão)</string>
+    <string name="media_pos_left">Esquerda</string>
+    <string name="swap_columns_title">Inverter Lados do Cockpit</string>
+    <string name="swap_columns_desc">Inverte as colunas esquerda e direita (ideal para mão inglesa)</string>
+    <string name="hide_media_not_playing_title">Ocultar Card de Mídia se Inativo</string>
+    <string name="hide_media_not_playing_desc">Esconde o card de música quando nenhuma mídia estiver tocando</string>
     <string name="default_launcher_title">Início Padrão do Veículo</string>
     <string name="default_launcher_active_desc">ClusterLauncher está ativo como launcher padrão</string>
     <string name="default_launcher_inactive_desc">Defina o ClusterLauncher como padrão ao ligar o carro</string>

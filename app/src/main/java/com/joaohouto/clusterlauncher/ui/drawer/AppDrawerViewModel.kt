@@ -130,6 +130,45 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
+    val mediaCardPosition: StateFlow<String> = dockPreferences.getMediaCardPositionFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = "right"
+        )
+
+    fun setMediaCardPosition(position: String) {
+        viewModelScope.launch {
+            dockPreferences.setMediaCardPosition(position)
+        }
+    }
+
+    val swapCockpitColumns: StateFlow<Boolean> = dockPreferences.getSwapCockpitColumnsFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    fun setSwapCockpitColumns(swap: Boolean) {
+        viewModelScope.launch {
+            dockPreferences.setSwapCockpitColumns(swap)
+        }
+    }
+
+    val hideMediaWhenNotPlaying: StateFlow<Boolean> = dockPreferences.getHideMediaWhenNotPlayingFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    fun setHideMediaWhenNotPlaying(hide: Boolean) {
+        viewModelScope.launch {
+            dockPreferences.setHideMediaWhenNotPlaying(hide)
+        }
+    }
+
     init {
         loadApps()
     }

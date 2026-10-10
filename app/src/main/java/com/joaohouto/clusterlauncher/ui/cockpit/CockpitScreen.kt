@@ -18,6 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.joaohouto.clusterlauncher.media.MediaManager
+import androidx.compose.runtime.collectAsState
 import com.joaohouto.clusterlauncher.data.model.CarBrand
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.ui.cockpit.components.CarBrandEmblem
@@ -26,7 +28,6 @@ import com.joaohouto.clusterlauncher.ui.cockpit.components.OfflineMapCard
 import com.joaohouto.clusterlauncher.ui.cockpit.components.QuickDockBar
 import com.joaohouto.clusterlauncher.ui.cockpit.components.SystemStatusRow
 import com.joaohouto.clusterlauncher.ui.cockpit.components.UniversalMediaCard
-import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.FullScreenMapModal
 
 @Composable
 fun CockpitScreen(
@@ -37,23 +38,32 @@ fun CockpitScreen(
     onBluetoothClick: () -> Unit = {},
     onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {},
+    onOpenFullScreenMap: () -> Unit = {},
     showMapOnHome: Boolean = true,
     isMapDarkMode: Boolean = false,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
     mapFollowHeading: Boolean = false,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
     fullScreenMode: Boolean = false,
+    mediaCardPosition: String = "right",
+    swapCockpitColumns: Boolean = false,
+    hideMediaWhenNotPlaying: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    var showFullScreenMap by remember { mutableStateOf(false) }
+
+    val mediaState by MediaManager.mediaState.collectAsState()
+    val showMediaCard = !hideMediaWhenNotPlaying || mediaState.isPlaying
+    val isMediaOnLeft = mediaCardPosition == "left"
+    val isMediaOnLeftAndVisible = isMediaOnLeft && showMediaCard
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 24.dp),
+            .padding(horizontal = 20.dp, vertical = if (fullScreenMode) 14.dp else 16.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Top Section: Instrument Cluster (45%) on Left, Media Player (55%) on Right
+
+        // Top Section: Instrument Cluster and Map / Media columns (swappable)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -61,62 +71,110 @@ fun CockpitScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left: Instrument Panel (Brand Logo + Clock + Horizon + Badges) (45%)
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(0.45f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                CarBrandEmblem(
-                    brand = selectedCarBrand,
-                    onClick = onBrandClick,
-                    size = 100.dp
-                )
+            val instrumentCol: @Composable (Modifier) -> Unit = { colModifier ->
+                Column(
+                    modifier = colModifier.fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (isMediaOnLeftAndVisible) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CarBrandEmblem(
+                                brand = selectedCarBrand,
+                                onClick = onBrandClick,
+                                size = 72.dp
+                            )
 
-                Spacer(modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                ClockWidget()
+                            ClockWidget(isCompact = true)
 
-                Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                SystemStatusRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                    onBluetoothClick = onBluetoothClick,
-                    onBluetoothLongClick = onBluetoothLongClick,
-                    onSettingsClick = onSettingsClick
-                )
+                            SystemStatusRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                isLarge = true,
+                                onBluetoothClick = onBluetoothClick,
+                                onBluetoothLongClick = onBluetoothLongClick,
+                                onSettingsClick = onSettingsClick
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        UniversalMediaCard(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        CarBrandEmblem(
+                            brand = selectedCarBrand,
+                            onClick = onBrandClick,
+                            size = 100.dp
+                        )
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        ClockWidget(isCompact = false)
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        SystemStatusRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                            onBluetoothClick = onBluetoothClick,
+                            onBluetoothLongClick = onBluetoothLongClick,
+                            onSettingsClick = onSettingsClick
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.width(20.dp))
+            val mapCol: @Composable (Modifier) -> Unit = { colModifier ->
+                Column(
+                    modifier = colModifier.fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (showMapOnHome) {
+                        OfflineMapCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            isDarkMode = isMapDarkMode,
+                            followHeading = mapFollowHeading,
+                            onMapClick = onOpenFullScreenMap
+                        )
+                    }
 
-            // Right: Offline Map and Universal Media Widget (55%)
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(0.55f)
-                    .padding(vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                if (showMapOnHome) {
-                    OfflineMapCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        isDarkMode = isMapDarkMode,
-                        followHeading = mapFollowHeading,
-                        onMapClick = { showFullScreenMap = true }
-                    )
+                    if (!isMediaOnLeft && showMediaCard) {
+                        if (showMapOnHome) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                        }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                        UniversalMediaCard(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
+            }
 
-                UniversalMediaCard(
-                    modifier = Modifier.fillMaxWidth()
-                )
+            val instWeight = if (isMediaOnLeftAndVisible) 0.46f else 0.45f
+            val mapWeight = if (isMediaOnLeftAndVisible) 0.54f else 0.55f
+
+            if (swapCockpitColumns) {
+                mapCol(Modifier.weight(mapWeight))
+                Spacer(modifier = Modifier.width(20.dp))
+                instrumentCol(Modifier.weight(instWeight))
+            } else {
+                instrumentCol(Modifier.weight(instWeight))
+                Spacer(modifier = Modifier.width(20.dp))
+                mapCol(Modifier.weight(mapWeight))
             }
         }
 
@@ -126,16 +184,6 @@ fun CockpitScreen(
         QuickDockBar(
             slots = dockSlots,
             onSlotLongClick = onSlotLongClick
-        )
-    }
-
-    if (showFullScreenMap) {
-        FullScreenMapModal(
-            initialDarkMode = isMapDarkMode,
-            followHeading = mapFollowHeading,
-            fullScreenMode = fullScreenMode,
-            onToggleDarkMode = onToggleMapDarkMode,
-            onDismiss = { showFullScreenMap = false }
         )
     }
 }

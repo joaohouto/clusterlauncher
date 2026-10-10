@@ -130,6 +130,12 @@ fun LauncherSettingsModal(
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
     fullScreenMode: Boolean = false,
     onToggleFullScreenMode: (Boolean) -> Unit = {},
+    mediaCardPosition: String = "right",
+    onSelectMediaCardPosition: (String) -> Unit = {},
+    swapCockpitColumns: Boolean = false,
+    onToggleSwapCockpitColumns: (Boolean) -> Unit = {},
+    hideMediaWhenNotPlaying: Boolean = false,
+    onToggleHideMediaWhenNotPlaying: (Boolean) -> Unit = {},
     bluetoothPackage: String? = null,
     onSelectBluetoothPackage: (String?) -> Unit = {},
     onOpenBluetoothPicker: () -> Unit = {},
@@ -378,6 +384,12 @@ fun LauncherSettingsModal(
                             onToggleMapFollowHeading = onToggleMapFollowHeading,
                             fullScreenMode = fullScreenMode,
                             onToggleFullScreenMode = onToggleFullScreenMode,
+                            mediaCardPosition = mediaCardPosition,
+                            onSelectMediaCardPosition = onSelectMediaCardPosition,
+                            swapCockpitColumns = swapCockpitColumns,
+                            onToggleSwapCockpitColumns = onToggleSwapCockpitColumns,
+                            hideMediaWhenNotPlaying = hideMediaWhenNotPlaying,
+                            onToggleHideMediaWhenNotPlaying = onToggleHideMediaWhenNotPlaying,
                             isDefaultLauncher = isDefaultLauncher,
                             onSetDefaultLauncher = { DefaultLauncherHelper.requestSetDefaultLauncher(context) },
                             bluetoothPackage = bluetoothPackage,
@@ -1065,6 +1077,12 @@ private fun SystemSettingsPanel(
     onToggleMapFollowHeading: (Boolean) -> Unit,
     fullScreenMode: Boolean,
     onToggleFullScreenMode: (Boolean) -> Unit,
+    mediaCardPosition: String = "right",
+    onSelectMediaCardPosition: (String) -> Unit = {},
+    swapCockpitColumns: Boolean = false,
+    onToggleSwapCockpitColumns: (Boolean) -> Unit = {},
+    hideMediaWhenNotPlaying: Boolean = false,
+    onToggleHideMediaWhenNotPlaying: (Boolean) -> Unit = {},
     isDefaultLauncher: Boolean,
     onSetDefaultLauncher: () -> Unit,
     bluetoothPackage: String? = null,
@@ -1137,28 +1155,6 @@ private fun SystemSettingsPanel(
                     )
                 }
 
-                // Toggle: Inverter Cores do Mapa
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = stringResource(R.string.map_dark_mode), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        Text(text = stringResource(R.string.map_dark_mode_desc), color = TextDisabled, fontSize = 11.sp)
-                    }
-                    Switch(
-                        checked = isMapDarkMode,
-                        onCheckedChange = onToggleMapDarkMode,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = accent,
-                            uncheckedThumbColor = TextDisabled,
-                            uncheckedTrackColor = Color(0xFF1E222B)
-                        )
-                    )
-                }
-
                 // Toggle: Travar Indicador no Topo (Heading-Up)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1194,6 +1190,128 @@ private fun SystemSettingsPanel(
                     Switch(
                         checked = fullScreenMode,
                         onCheckedChange = onToggleFullScreenMode,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
+                    )
+                }
+
+                // Seletor: Posição do Card de Mídia
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.media_card_position_title),
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.media_card_position_desc),
+                            color = TextDisabled,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val isRight = mediaCardPosition != "left"
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onSelectMediaCardPosition("right") },
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isRight) accent.copy(alpha = 0.15f) else Color(0xFF101215),
+                            border = BorderStroke(1.dp, if (isRight) accent else SurfaceCardBorder)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.media_pos_right),
+                                color = if (isRight) TextPrimary else TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = if (isRight) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onSelectMediaCardPosition("left") },
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (!isRight) accent.copy(alpha = 0.15f) else Color(0xFF101215),
+                            border = BorderStroke(1.dp, if (!isRight) accent else SurfaceCardBorder)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.media_pos_left),
+                                color = if (!isRight) TextPrimary else TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = if (!isRight) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Toggle: Inverter Lados do Cockpit (Swap Columns)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.swap_columns_title),
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.swap_columns_desc),
+                            color = TextDisabled,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Switch(
+                        checked = swapCockpitColumns,
+                        onCheckedChange = onToggleSwapCockpitColumns,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
+                    )
+                }
+
+                // Toggle: Ocultar Card de Mídia se Inativo
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.hide_media_not_playing_title),
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = stringResource(R.string.hide_media_not_playing_desc),
+                            color = TextDisabled,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Switch(
+                        checked = hideMediaWhenNotPlaying,
+                        onCheckedChange = onToggleHideMediaWhenNotPlaying,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = accent,

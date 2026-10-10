@@ -47,7 +47,8 @@ import androidx.compose.foundation.layout.FlowRow
 @Composable
 fun SystemStatusRow(
     modifier: Modifier = Modifier,
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+    isLarge: Boolean = false,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(if (isLarge) 12.dp else 10.dp, Alignment.CenterHorizontally),
     onBluetoothClick: () -> Unit = {},
     onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {}
@@ -63,12 +64,14 @@ fun SystemStatusRow(
             icon = if (isBluetoothConnected) Icons.Rounded.BluetoothConnected else Icons.Rounded.Bluetooth,
             label = if (isBluetoothConnected) stringResource(R.string.bluetooth_connected) else stringResource(R.string.bluetooth_disconnected),
             isActive = isBluetoothConnected,
+            isLarge = isLarge,
             onClick = onBluetoothClick,
             onLongClick = onBluetoothLongClick
         )
         ActionBadge(
             icon = Icons.Rounded.Settings,
             label = stringResource(R.string.settings),
+            isLarge = isLarge,
             onClick = onSettingsClick
         )
     }
@@ -80,6 +83,7 @@ private fun StatusBadge(
     icon: ImageVector,
     label: String,
     isActive: Boolean,
+    isLarge: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -87,31 +91,35 @@ private fun StatusBadge(
     val accent = LocalClusterAccent.current.primary
     val tint = if (isActive) accent else TextDisabled
     val textColor = if (isActive) TextPrimary else TextDisabled
+    val shapeRadius = if (isLarge) 24.dp else 20.dp
     val borderColor = if (isActive) accent.copy(alpha = 0.5f) else SurfaceCardBorder
 
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(shapeRadius))
             .background(SurfaceCard)
-            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(shapeRadius))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(
+                horizontal = if (isLarge) 16.dp else 12.dp,
+                vertical = if (isLarge) 9.dp else 6.dp
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = tint,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(if (isLarge) 26.dp else 22.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(if (isLarge) 10.dp else 8.dp))
         Text(
             text = label,
             color = textColor,
-            fontSize = 14.sp,
+            fontSize = if (isLarge) 16.sp else 14.sp,
             fontWeight = FontWeight.SemiBold
         )
     }
@@ -121,31 +129,36 @@ private fun StatusBadge(
 private fun ActionBadge(
     icon: ImageVector,
     label: String,
+    isLarge: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val accent = LocalClusterAccent.current.primary
+    val shapeRadius = if (isLarge) 24.dp else 20.dp
 
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(shapeRadius))
             .background(SurfaceCard)
-            .border(1.dp, accent.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+            .border(1.dp, accent.copy(alpha = 0.6f), RoundedCornerShape(shapeRadius))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(
+                horizontal = if (isLarge) 16.dp else 12.dp,
+                vertical = if (isLarge) 9.dp else 6.dp
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = accent,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(if (isLarge) 26.dp else 22.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(if (isLarge) 10.dp else 8.dp))
         Text(
             text = label,
             color = TextPrimary,
-            fontSize = 14.sp,
+            fontSize = if (isLarge) 16.sp else 14.sp,
             fontWeight = FontWeight.SemiBold
         )
     }

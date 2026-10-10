@@ -168,16 +168,7 @@ fun OfflineMapCard(
                         )
                     }
 
-                    // Overlay HUD Superior
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.Start,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        GpsStatusBadge(location = locationState)
-                    }
+
 
                     // Overlay Inferior: Exibido apenas se nenhum mapa offline estiver carregado
                     if (!mapState.isMapLoaded) {
@@ -463,50 +454,7 @@ private fun RadarFallbackView(
     }
 }
 
-/**
- * Badge com status de conexão do GPS e satélites.
- */
-@Composable
-private fun GpsStatusBadge(location: GpsLocationData) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = Color(0xCC181A1F),
-        border = BorderStroke(1.dp, SurfaceCardBorder)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(if (location.hasFix) Color(0xFF4CAF50) else Color(0xFFFFB300))
-            )
-            Spacer(modifier = Modifier.width(6.dp))
 
-            Text(
-                text = if (location.hasFix) {
-                    "GPS"
-                } else {
-                    stringResource(R.string.gps_searching)
-                },
-                color = TextPrimary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            if (location.satellitesCount > 0) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "• ${location.satellitesCount} sat",
-                    color = TextSecondary,
-                    fontSize = 11.sp
-                )
-            }
-        }
-    }
-}
 
 /**
  * Banner para solicitar a concessão de permissão de GPS no Cockpit.

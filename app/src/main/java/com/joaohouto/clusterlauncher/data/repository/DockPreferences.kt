@@ -137,5 +137,47 @@ class DockPreferences(private val context: Context) {
             }
         }
     }
+
+    private val MEDIA_CARD_POSITION_KEY = stringPreferencesKey("media_card_position")
+
+    fun getMediaCardPositionFlow(): Flow<String> {
+        return context.dataStore.data.map { preferences ->
+            preferences[MEDIA_CARD_POSITION_KEY] ?: "right"
+        }
+    }
+
+    suspend fun setMediaCardPosition(position: String) {
+        context.dataStore.edit { preferences ->
+            preferences[MEDIA_CARD_POSITION_KEY] = position
+        }
+    }
+
+    private val SWAP_COCKPIT_COLUMNS_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("swap_cockpit_columns")
+
+    fun getSwapCockpitColumnsFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[SWAP_COCKPIT_COLUMNS_KEY] ?: false
+        }
+    }
+
+    suspend fun setSwapCockpitColumns(swap: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SWAP_COCKPIT_COLUMNS_KEY] = swap
+        }
+    }
+
+    private val HIDE_MEDIA_WHEN_NOT_PLAYING_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("hide_media_when_not_playing")
+
+    fun getHideMediaWhenNotPlayingFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[HIDE_MEDIA_WHEN_NOT_PLAYING_KEY] ?: false
+        }
+    }
+
+    suspend fun setHideMediaWhenNotPlaying(hide: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[HIDE_MEDIA_WHEN_NOT_PLAYING_KEY] = hide
+        }
+    }
 }
 

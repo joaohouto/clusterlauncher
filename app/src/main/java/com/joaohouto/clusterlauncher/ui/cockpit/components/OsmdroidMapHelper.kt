@@ -98,6 +98,12 @@ object OsmdroidMapHelper {
             MapView(context)
         }
 
+        mapView.setBackgroundColor(Color.parseColor("#0C0D10"))
+        try {
+            mapView.overlayManager.tilesOverlay.loadingBackgroundColor = Color.parseColor("#0C0D10")
+            mapView.overlayManager.tilesOverlay.loadingLineColor = Color.TRANSPARENT
+        } catch (_: Exception) {}
+
         mapView.setDestroyMode(false)
         mapView.isTilesScaledToDpi = true
         mapView.minZoomLevel = 4.0

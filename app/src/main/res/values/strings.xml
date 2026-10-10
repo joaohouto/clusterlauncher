@@ -49,6 +49,14 @@
     <string name="map_follow_heading_desc">Rotates the map according to vehicle compass heading</string>
     <string name="fullscreen_mode">Full Screen Mode</string>
     <string name="fullscreen_mode_desc">Hide status bar and system navigation buttons</string>
+    <string name="media_card_position_title">Media Player Position</string>
+    <string name="media_card_position_desc">Moving to left allows the map to occupy the full right column</string>
+    <string name="media_pos_right">Right (Default)</string>
+    <string name="media_pos_left">Left</string>
+    <string name="swap_columns_title">Swap Cockpit Columns</string>
+    <string name="swap_columns_desc">Swaps left and right columns (ideal for right-hand drive)</string>
+    <string name="hide_media_not_playing_title">Hide Media Card When Idle</string>
+    <string name="hide_media_not_playing_desc">Hides the media player card when no media is playing</string>
     <string name="default_launcher_title">Vehicle Default Home</string>
     <string name="default_launcher_active_desc">ClusterLauncher is active as the default launcher</string>
     <string name="default_launcher_inactive_desc">Set ClusterLauncher as default when starting the vehicle</string>
