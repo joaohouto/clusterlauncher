@@ -24,7 +24,8 @@ import java.net.URLDecoder
 object LocalMBTilesServer {
 
     private const val TAG = "LocalMBTilesServer"
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val scope = CoroutineScope(Dispatchers.IO.limitedParallelism(8) + SupervisorJob())
 
     private var serverSocket: ServerSocket? = null
     @Volatile
@@ -41,7 +42,9 @@ object LocalMBTilesServer {
     private var appContext: Context? = null
 
     // Cache LRU em memória para blocos PBF recentes (reduz I/O de disco SQLite em rotações e panning)
-    private val tileCache = LruCache<Long, ByteArray>(250)
+    private val tileCache = LruCache<Long, ByteArray>(400)
+    // Cache LRU em memória para glifos de fonte PBF (evita ler do APK assets repetidamente)
+    private val glyphCache = LruCache<String, ByteArray>(64)
 
     private fun getTileCacheKey(z: Int, x: Int, y: Int): Long {
         return (z.toLong() and 0x3FL shl 54) or ((x.toLong() and 0x1FFFFFFL) shl 27) or (y.toLong() and 0x1FFFFFFL)
@@ -163,6 +166,11 @@ object LocalMBTilesServer {
                 send404(client)
             } else if (path.startsWith("/glyphs/")) {
                 val cleanPath = URLDecoder.decode(path.removePrefix("/glyphs/"), "UTF-8")
+                val cachedGlyph = synchronized(glyphCache) { glyphCache.get(cleanPath) }
+                if (cachedGlyph != null && cachedGlyph.isNotEmpty()) {
+                    sendResponse(client, cachedGlyph, isPbf = false, contentType = "application/x-protobuf")
+                    return
+                }
                 val assetPath = "fonts/$cleanPath"
                 val data = try {
                     appContext?.assets?.open(assetPath)?.readBytes()
@@ -170,14 +178,22 @@ object LocalMBTilesServer {
                     null
                 }
                 if (data != null && data.isNotEmpty()) {
+                    synchronized(glyphCache) { glyphCache.put(cleanPath, data) }
                     sendResponse(client, data, isPbf = false, contentType = "application/x-protobuf")
                     return
                 } else {
                     val fontName = cleanPath.substringBeforeLast("/")
+                    val fallbackKey = "$fontName/0-255.pbf"
+                    val cachedFallback = synchronized(glyphCache) { glyphCache.get(fallbackKey) }
+                    if (cachedFallback != null && cachedFallback.isNotEmpty()) {
+                        sendResponse(client, cachedFallback, isPbf = false, contentType = "application/x-protobuf")
+                        return
+                    }
                     val fallback = try {
-                        appContext?.assets?.open("fonts/$fontName/0-255.pbf")?.readBytes()
+                        appContext?.assets?.open("fonts/$fallbackKey")?.readBytes()
                     } catch (_: Exception) { null }
                     if (fallback != null && fallback.isNotEmpty()) {
+                        synchronized(glyphCache) { glyphCache.put(fallbackKey, fallback) }
                         sendResponse(client, fallback, isPbf = false, contentType = "application/x-protobuf")
                         return
                     }

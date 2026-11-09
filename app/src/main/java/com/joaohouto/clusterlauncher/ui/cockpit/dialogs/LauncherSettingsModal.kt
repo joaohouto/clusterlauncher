@@ -92,6 +92,7 @@ import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
 import com.joaohouto.clusterlauncher.data.map.MapFileInfo
 import com.joaohouto.clusterlauncher.data.map.TileProvider
 import com.joaohouto.clusterlauncher.data.model.CarBrand
+import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.repository.AutomotivePackageResolver
 import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.ui.theme.ALL_ACCENT_THEMES
@@ -122,12 +123,16 @@ fun LauncherSettingsModal(
     selectedBrand: CarBrand,
     selectedAccentId: String = "needle_red",
     onSelectAccent: (String) -> Unit = {},
+    selectedLayoutPreset: CockpitLayoutPreset = CockpitLayoutPreset.CLASSIC,
+    onSelectLayoutPreset: (CockpitLayoutPreset) -> Unit = {},
     showMapOnHome: Boolean = true,
     onToggleShowMap: (Boolean) -> Unit = {},
     isMapDarkMode: Boolean = false,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
     mapFollowHeading: Boolean = false,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
+    map3dPerspective: Boolean = false,
+    onToggleMap3dPerspective: (Boolean) -> Unit = {},
     fullScreenMode: Boolean = false,
     onToggleFullScreenMode: (Boolean) -> Unit = {},
     mediaCardPosition: String = "right",
@@ -365,23 +370,31 @@ fun LauncherSettingsModal(
                                 MBTilesDownloader.cancelDownload(context)
                             },
                             mapFollowHeading = mapFollowHeading,
-                            onToggleMapFollowHeading = onToggleMapFollowHeading
+                            onToggleMapFollowHeading = onToggleMapFollowHeading,
+                            map3dPerspective = map3dPerspective,
+                            onToggleMap3dPerspective = onToggleMap3dPerspective
                         )
 
                         SettingsTab.VEHICLE -> VehicleSettingsPanel(
                             selectedBrand = selectedBrand,
                             selectedAccentId = selectedAccentId,
                             onSelectAccent = onSelectAccent,
+                            selectedLayoutPreset = selectedLayoutPreset,
+                            onSelectLayoutPreset = onSelectLayoutPreset,
                             onSelectBrandClick = onSelectBrandClick
                         )
 
                         SettingsTab.SYSTEM -> SystemSettingsPanel(
+                            selectedLayoutPreset = selectedLayoutPreset,
+                            onSelectLayoutPreset = onSelectLayoutPreset,
                             showMapOnHome = showMapOnHome,
                             onToggleShowMap = onToggleShowMap,
                             isMapDarkMode = isMapDarkMode,
                             onToggleMapDarkMode = onToggleMapDarkMode,
                             mapFollowHeading = mapFollowHeading,
                             onToggleMapFollowHeading = onToggleMapFollowHeading,
+                            map3dPerspective = map3dPerspective,
+                            onToggleMap3dPerspective = onToggleMap3dPerspective,
                             fullScreenMode = fullScreenMode,
                             onToggleFullScreenMode = onToggleFullScreenMode,
                             mediaCardPosition = mediaCardPosition,
@@ -471,7 +484,9 @@ private fun MapsSettingsPanel(
     onStartDownload: () -> Unit,
     onCancelDownload: () -> Unit,
     mapFollowHeading: Boolean,
-    onToggleMapFollowHeading: (Boolean) -> Unit
+    onToggleMapFollowHeading: (Boolean) -> Unit,
+    map3dPerspective: Boolean = false,
+    onToggleMap3dPerspective: (Boolean) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val accent = LocalClusterAccent.current.primary
@@ -563,45 +578,82 @@ private fun MapsSettingsPanel(
             }
         }
 
-        // Configuração de Orientação do Mapa (Heading-Up)
+        // Configuração de Orientação e Perspectiva do Mapa
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             color = SurfaceCard,
             border = BorderStroke(1.dp, SurfaceCardBorder)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Travar Indicador no Topo (Heading-Up)",
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Seta fixa apontando para cima e mapa rotacionando com o deslocamento do carro",
-                        color = TextDisabled,
-                        fontSize = 11.sp
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Travar Indicador no Topo (Heading-Up)",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Seta fixa apontando para cima e mapa rotacionando com o deslocamento do carro",
+                            color = TextDisabled,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Switch(
+                        checked = mapFollowHeading,
+                        onCheckedChange = onToggleMapFollowHeading,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Switch(
-                    checked = mapFollowHeading,
-                    onCheckedChange = onToggleMapFollowHeading,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = accent,
-                        uncheckedThumbColor = TextDisabled,
-                        uncheckedTrackColor = Color(0xFF1E222B)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.map_3d_perspective),
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.map_3d_perspective_desc),
+                            color = TextDisabled,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Switch(
+                        checked = map3dPerspective,
+                        onCheckedChange = onToggleMap3dPerspective,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
                     )
-                )
+                }
             }
         }
 
@@ -893,9 +945,12 @@ private fun VehicleSettingsPanel(
     selectedBrand: CarBrand,
     selectedAccentId: String,
     onSelectAccent: (String) -> Unit,
+    selectedLayoutPreset: CockpitLayoutPreset,
+    onSelectLayoutPreset: (CockpitLayoutPreset) -> Unit,
     onSelectBrandClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val accent = LocalClusterAccent.current.primary
 
     Column(
         modifier = Modifier
@@ -911,11 +966,18 @@ private fun VehicleSettingsPanel(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Personalize o emblema da montadora e a tonalidade de iluminação do cockpit.",
+                text = "Personalize o padrão de organização, emblema da montadora e iluminação do cockpit.",
                 color = TextSecondary,
                 fontSize = 12.sp
             )
         }
+
+        // Cartão 0: Padrão de Organização (Layout)
+        LayoutPresetSelectorCard(
+            selectedPreset = selectedLayoutPreset,
+            onSelectPreset = onSelectLayoutPreset,
+            accent = accent
+        )
 
         // Cartão 1: Marca do Veículo
         Surface(
@@ -1065,16 +1127,132 @@ private fun VehicleSettingsPanel(
 }
 
 /**
+ * Cartão seletor de Padrão de Organização (Cockpit Clássico vs Android Auto Split).
+ */
+@Composable
+private fun LayoutPresetSelectorCard(
+    selectedPreset: CockpitLayoutPreset,
+    onSelectPreset: (CockpitLayoutPreset) -> Unit,
+    accent: Color
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceCard,
+        border = BorderStroke(1.dp, SurfaceCardBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column {
+                Text(
+                    text = stringResource(R.string.layout_preset_title),
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = stringResource(R.string.layout_preset_subtitle),
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                val options = listOf(
+                    Triple(
+                        CockpitLayoutPreset.CLASSIC,
+                        stringResource(R.string.layout_classic_name),
+                        stringResource(R.string.layout_classic_desc)
+                    ),
+                    Triple(
+                        CockpitLayoutPreset.ANDROID_AUTO,
+                        stringResource(R.string.layout_android_auto_name),
+                        stringResource(R.string.layout_android_auto_desc)
+                    )
+                )
+
+                options.forEach { (preset, title, desc) ->
+                    val isSelected = selectedPreset == preset
+                    val borderColor = if (isSelected) accent else SurfaceCardBorder
+                    val bgColor = if (isSelected) accent.copy(alpha = 0.12f) else Color(0xFF101215)
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelectPreset(preset) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = bgColor,
+                        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = if (isSelected) TextPrimary else TextSecondary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(CircleShape)
+                                            .background(accent),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                text = desc,
+                                color = TextDisabled,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
  * Painel da aba Sistema: switches de exibição do cockpit, launcher padrão e permissões.
  */
 @Composable
 private fun SystemSettingsPanel(
+    selectedLayoutPreset: CockpitLayoutPreset = CockpitLayoutPreset.CLASSIC,
+    onSelectLayoutPreset: (CockpitLayoutPreset) -> Unit = {},
     showMapOnHome: Boolean,
     onToggleShowMap: (Boolean) -> Unit,
     isMapDarkMode: Boolean,
     onToggleMapDarkMode: (Boolean) -> Unit,
     mapFollowHeading: Boolean,
     onToggleMapFollowHeading: (Boolean) -> Unit,
+    map3dPerspective: Boolean = false,
+    onToggleMap3dPerspective: (Boolean) -> Unit = {},
     fullScreenMode: Boolean,
     onToggleFullScreenMode: (Boolean) -> Unit,
     mediaCardPosition: String = "right",
@@ -1117,6 +1295,13 @@ private fun SystemSettingsPanel(
                 fontSize = 12.sp
             )
         }
+
+        // Seletor de Padrão de Organização também acessível em Sistema
+        LayoutPresetSelectorCard(
+            selectedPreset = selectedLayoutPreset,
+            onSelectPreset = onSelectLayoutPreset,
+            accent = accent
+        )
 
         // Cartão 1: Visualização do Cockpit
         Surface(
@@ -1177,6 +1362,28 @@ private fun SystemSettingsPanel(
                     )
                 }
 
+                // Toggle: Visão 3D de Navegação (Estilo Android Auto)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = stringResource(R.string.map_3d_perspective), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(text = stringResource(R.string.map_3d_perspective_desc), color = TextDisabled, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = map3dPerspective,
+                        onCheckedChange = onToggleMap3dPerspective,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
+                    )
+                }
+
                 // Toggle: Modo Tela Cheia Imersivo
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1199,62 +1406,64 @@ private fun SystemSettingsPanel(
                     )
                 }
 
-                // Seletor: Posição do Card de Mídia
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.media_card_position_title),
-                            color = TextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = stringResource(R.string.media_card_position_desc),
-                            color = TextDisabled,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        val isRight = mediaCardPosition != "left"
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onSelectMediaCardPosition("right") },
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isRight) accent.copy(alpha = 0.15f) else Color(0xFF101215),
-                            border = BorderStroke(1.dp, if (isRight) accent else SurfaceCardBorder)
-                        ) {
+                // Seletor: Posição do Card de Mídia (apenas no modo Clássico)
+                if (selectedLayoutPreset == CockpitLayoutPreset.CLASSIC) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = stringResource(R.string.media_pos_right),
-                                color = if (isRight) TextPrimary else TextSecondary,
-                                fontSize = 11.sp,
-                                fontWeight = if (isRight) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                text = stringResource(R.string.media_card_position_title),
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.media_card_position_desc),
+                                color = TextDisabled,
+                                fontSize = 11.sp
                             )
                         }
 
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onSelectMediaCardPosition("left") },
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (!isRight) accent.copy(alpha = 0.15f) else Color(0xFF101215),
-                            border = BorderStroke(1.dp, if (!isRight) accent else SurfaceCardBorder)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.media_pos_left),
-                                color = if (!isRight) TextPrimary else TextSecondary,
-                                fontSize = 11.sp,
-                                fontWeight = if (!isRight) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val isRight = mediaCardPosition != "left"
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { onSelectMediaCardPosition("right") },
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isRight) accent.copy(alpha = 0.15f) else Color(0xFF101215),
+                                border = BorderStroke(1.dp, if (isRight) accent else SurfaceCardBorder)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.media_pos_right),
+                                    color = if (isRight) TextPrimary else TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isRight) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { onSelectMediaCardPosition("left") },
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (!isRight) accent.copy(alpha = 0.15f) else Color(0xFF101215),
+                                border = BorderStroke(1.dp, if (!isRight) accent else SurfaceCardBorder)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.media_pos_left),
+                                    color = if (!isRight) TextPrimary else TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (!isRight) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
                         }
                     }
                 }

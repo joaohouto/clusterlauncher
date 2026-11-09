@@ -81,6 +81,8 @@ fun OfflineMapCard(
     heightDp: Int? = null,
     isDarkMode: Boolean = false,
     followHeading: Boolean = false,
+    is3dPerspective: Boolean = false,
+    isMapPaused: Boolean = false,
     onMapClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -151,14 +153,18 @@ fun OfflineMapCard(
                             MapLibreCardMapView(
                                 location = locationState,
                                 activeFile = activeFile,
-                                followHeading = followHeading
+                                followHeading = followHeading,
+                                is3dPerspective = is3dPerspective,
+                                isMapPaused = isMapPaused
                             )
                         } else {
                             OsmCardMapView(
                                 location = locationState,
                                 activeFile = activeFile,
                                 isDarkMode = isDarkMode,
-                                followHeading = followHeading
+                                followHeading = followHeading,
+                                is3dPerspective = is3dPerspective,
+                                isMapPaused = isMapPaused
                             )
                         }
                     } else {
@@ -215,18 +221,31 @@ fun OfflineMapCard(
 }
 
 /**
- * Visualização do mapa vetorial no card usando MapLibre Native com zoom 15.
+ * Visualização do mapa vetorial no card usando MapLibre Native.
  */
 @Composable
 private fun MapLibreCardMapView(
     location: GpsLocationData,
     activeFile: File?,
-    followHeading: Boolean
+    followHeading: Boolean,
+    is3dPerspective: Boolean,
+    isMapPaused: Boolean
 ) {
     val accent = LocalClusterAccent.current
     val primaryColor = accent.primary.toArgb()
     val darkColor = accent.dark.toArgb()
     var mapViewInstance by remember { mutableStateOf<MapLibreMapView?>(null) }
+
+    LaunchedEffect(isMapPaused, mapViewInstance) {
+        val mv = mapViewInstance ?: return@LaunchedEffect
+        try {
+            if (isMapPaused) {
+                mv.onPause()
+            } else {
+                mv.onResume()
+            }
+        } catch (_: Exception) {}
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -240,6 +259,9 @@ private fun MapLibreCardMapView(
     }
 
     if (activeFile != null && activeFile.exists()) {
+        val cardZoom = if (is3dPerspective) 16.0 else 15.0
+        val cardPitch = if (is3dPerspective) MapLibreMapHelper.PITCH_3D_DEGREES else MapLibreMapHelper.PITCH_2D_DEGREES
+
         Box(modifier = Modifier.fillMaxSize()) {
             AndroidView(
                 factory = { ctx ->
@@ -248,36 +270,46 @@ private fun MapLibreCardMapView(
                         mbtilesFile = activeFile,
                         initialLocation = location,
                         isInteractive = false,
-                        initialZoom = 15.0,
+                        initialZoom = cardZoom,
                         primaryColor = primaryColor,
                         darkColor = darkColor,
-                        followVehicleHeading = followHeading
+                        followVehicleHeading = followHeading,
+                        is3dPerspective = is3dPerspective
                     )
                     mapViewInstance = mv
                     mv
                 },
                 update = { mapView ->
+                    if (isMapPaused) return@AndroidView
+                    val tracker = mapView.tag as? MapLibreRenderTracker
+                    if (tracker != null && !tracker.shouldUpdate(location, followHeading, is3dPerspective, primaryColor)) {
+                        return@AndroidView
+                    }
+
                     mapView.getMapAsync { map ->
                         val target = MapProjectionHelper.calculateRoadAheadTarget(
                             location = location,
                             followHeading = followHeading,
-                            zoom = 15.0,
-                            viewportHeightPx = if (mapView.height > 0) mapView.height else 400
+                            zoom = cardZoom,
+                            viewportHeightPx = if (mapView.height > 0) mapView.height else 400,
+                            forwardOffset = is3dPerspective
                         )
 
                         val cameraPosition = CameraPosition.Builder()
                             .target(LatLng(target.latitude, target.longitude))
-                            .zoom(15.0)
+                            .zoom(cardZoom)
+                            .tilt(cardPitch)
                             .bearing(target.bearing.toDouble())
                             .build()
-                        map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 900)
+                        map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 850)
                         MapLibreMapHelper.updateVehicleLocation(
                             mapView.context,
                             map,
                             location,
                             primaryColor,
                             darkColor,
-                            followVehicleHeading = followHeading
+                            followVehicleHeading = followHeading,
+                            is3dPerspective = is3dPerspective
                         )
                     }
                 },
@@ -299,19 +331,32 @@ private fun MapLibreCardMapView(
 }
 
 /**
- * Visualização do mapa rasterizado no card usando osmdroid com zoom 15.
+ * Visualização do mapa rasterizado no card usando osmdroid.
  */
 @Composable
 private fun OsmCardMapView(
     location: GpsLocationData,
     activeFile: File?,
     isDarkMode: Boolean,
-    followHeading: Boolean
+    followHeading: Boolean,
+    is3dPerspective: Boolean,
+    isMapPaused: Boolean
 ) {
     val accent = LocalClusterAccent.current
     val primaryColor = accent.primary.toArgb()
     val darkColor = accent.dark.toArgb()
     var osmMapViewInstance by remember { mutableStateOf<OsmMapView?>(null) }
+
+    LaunchedEffect(isMapPaused, osmMapViewInstance) {
+        val mv = osmMapViewInstance ?: return@LaunchedEffect
+        try {
+            if (isMapPaused) {
+                mv.onPause()
+            } else {
+                mv.onResume()
+            }
+        } catch (_: Exception) {}
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -324,6 +369,8 @@ private fun OsmCardMapView(
     }
 
     if (activeFile != null && activeFile.exists()) {
+        val cardZoom = if (is3dPerspective) 16.0 else 15.0
+
         Box(modifier = Modifier.fillMaxSize()) {
             AndroidView(
                 factory = { ctx ->
@@ -333,7 +380,7 @@ private fun OsmCardMapView(
                         initialLocation = location,
                         isInteractive = false,
                         isDarkMode = isDarkMode,
-                        initialZoom = 15.0,
+                        initialZoom = cardZoom,
                         primaryColor = primaryColor,
                         darkColor = darkColor,
                         followHeading = followHeading
@@ -342,6 +389,12 @@ private fun OsmCardMapView(
                     mv
                 },
                 update = { mapView ->
+                    if (isMapPaused) return@AndroidView
+                    val tracker = mapView.tag as? OsmRenderTracker
+                    if (tracker != null && !tracker.shouldUpdate(location, followHeading, is3dPerspective, isDarkMode, primaryColor)) {
+                        return@AndroidView
+                    }
+
                     if (isDarkMode) {
                         mapView.overlayManager.tilesOverlay.setColorFilter(OsmdroidMapHelper.DarkCockpitColorFilter)
                     } else {
@@ -351,11 +404,12 @@ private fun OsmCardMapView(
                     val target = MapProjectionHelper.calculateRoadAheadTarget(
                         location = location,
                         followHeading = followHeading,
-                        zoom = 15.0,
-                        viewportHeightPx = if (mapView.height > 0) mapView.height else 400
+                        zoom = cardZoom,
+                        viewportHeightPx = if (mapView.height > 0) mapView.height else 400,
+                        forwardOffset = is3dPerspective
                     )
                     mapView.controller.setCenter(GeoPoint(target.latitude, target.longitude))
-                    mapView.controller.setZoom(15.0)
+                    mapView.controller.setZoom(cardZoom)
                     mapView.mapOrientation = if (followHeading) -location.bearing else 0f
 
                     for (overlay in mapView.overlays) {
@@ -438,18 +492,33 @@ private fun RadarFallbackView(
             )
         }
 
-        // Seta do Carro centralizada com borda branca clássica e miolo na cor de accent
+        // Indicador circular do carro estilo Android Auto (círculo na cor do tema + seta branca)
+        drawCircle(
+            color = Color(0x66000000),
+            radius = 23f,
+            center = Offset(center.x, center.y + 1.5f)
+        )
+        drawCircle(
+            color = accentPrimary,
+            radius = 20f,
+            center = center
+        )
+        drawCircle(
+            color = Color(0x40FFFFFF),
+            radius = 19.5f,
+            center = center,
+            style = Stroke(width = 1.2f)
+        )
+
         rotate(degrees = arrowRotation, pivot = center) {
             val arrowPath = Path().apply {
-                moveTo(center.x, center.y - 13f)
-                lineTo(center.x + 9f, center.y + 11f)
-                lineTo(center.x, center.y + 6f)
-                lineTo(center.x - 9f, center.y + 11f)
+                moveTo(center.x, center.y - 11.5f)
+                lineTo(center.x + 9.5f, center.y + 9f)
+                lineTo(center.x, center.y + 4.2f)
+                lineTo(center.x - 9.5f, center.y + 9f)
                 close()
             }
-            drawPath(path = arrowPath, color = Color(0x99000000), style = Stroke(width = 4f))
-            drawPath(path = arrowPath, color = accentPrimary)
-            drawPath(path = arrowPath, color = Color.White, style = Stroke(width = 2f))
+            drawPath(path = arrowPath, color = Color.White)
         }
     }
 }

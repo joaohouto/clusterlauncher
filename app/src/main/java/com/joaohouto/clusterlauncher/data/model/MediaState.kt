@@ -9,6 +9,8 @@ data class MediaState(
     val albumArtBitmap: Bitmap? = null,
     val albumArtUri: Uri? = null,
     val isPlaying: Boolean = false,
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L,
     val packageName: String? = null,
     val hasActiveSession: Boolean = false,
     val isPermissionGranted: Boolean = true

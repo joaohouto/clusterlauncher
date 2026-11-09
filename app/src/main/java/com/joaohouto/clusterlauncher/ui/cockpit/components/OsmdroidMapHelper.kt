@@ -1,11 +1,11 @@
 package com.joaohouto.clusterlauncher.ui.cockpit.components
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.CornerPathEffect
 import android.graphics.Paint
 import android.graphics.Point
 import android.util.Log
@@ -20,6 +20,45 @@ import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
 import java.io.File
+import kotlin.math.abs
+
+class OsmRenderTracker(
+    var lastLat: Double = Double.NaN,
+    var lastLon: Double = Double.NaN,
+    var lastBearing: Float = Float.NaN,
+    var lastFollowHeading: Boolean = false,
+    var last3dPerspective: Boolean = false,
+    var lastDarkMode: Boolean = false,
+    var lastPrimaryColor: Int = 0
+) {
+    fun shouldUpdate(
+        location: GpsLocationData,
+        followHeading: Boolean,
+        is3dPerspective: Boolean,
+        isDarkMode: Boolean,
+        primaryColor: Int
+    ): Boolean {
+        val latChanged = lastLat.isNaN() || abs(location.latitude - lastLat) > 0.000003
+        val lonChanged = lastLon.isNaN() || abs(location.longitude - lastLon) > 0.000003
+        val bearingChanged = lastBearing.isNaN() || abs(location.bearing - lastBearing) > 0.8f
+        val modeChanged = followHeading != lastFollowHeading ||
+            is3dPerspective != last3dPerspective ||
+            isDarkMode != lastDarkMode ||
+            primaryColor != lastPrimaryColor
+
+        if (latChanged || lonChanged || bearingChanged || modeChanged) {
+            lastLat = location.latitude
+            lastLon = location.longitude
+            lastBearing = location.bearing
+            lastFollowHeading = followHeading
+            last3dPerspective = is3dPerspective
+            lastDarkMode = isDarkMode
+            lastPrimaryColor = primaryColor
+            return true
+        }
+        return false
+    }
+}
 
 object OsmdroidMapHelper {
 
@@ -97,6 +136,7 @@ object OsmdroidMapHelper {
         } else {
             MapView(context)
         }
+        mapView.tag = OsmRenderTracker()
 
         mapView.setBackgroundColor(Color.parseColor("#0C0D10"))
         try {
@@ -145,9 +185,9 @@ object OsmdroidMapHelper {
 }
 
 /**
- * Overlay de renderização da seta de posição e direção do veículo no osmdroid.
- * A borda branca foi substituída pelo tom escuro da accent color.
- * Mantém o veículo sempre rigorosamente centralizado no mapa.
+ * Overlay de renderização do indicador circular do veículo (estilo Android Auto) no osmdroid:
+ * círculo preenchido com a cor do tema (primaryColor), sombra difusa externa
+ * e seta de navegação branca centralizada.
  */
 class VehicleMarkerOverlay(
     var location: GpsLocationData,
@@ -156,28 +196,31 @@ class VehicleMarkerOverlay(
     var followHeading: Boolean = false
 ) : Overlay() {
 
-    private val shadowPaint = Paint().apply {
-        isAntiAlias = true
-        color = Color.argb(160, 0, 0, 0)
-        style = Paint.Style.STROKE
-        strokeWidth = 7.5f
-        strokeJoin = Paint.Join.ROUND
-        strokeCap = Paint.Cap.ROUND
+    private val outerShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(45, 0, 0, 0)
+        style = Paint.Style.FILL
     }
 
-    private val arrowPaint = Paint().apply {
-        isAntiAlias = true
+    private val innerShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(105, 0, 0, 0)
+        style = Paint.Style.FILL
+    }
+
+    private val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = primaryColor
         style = Paint.Style.FILL
     }
 
-    private val outlinePaint = Paint().apply {
-        isAntiAlias = true
-        color = Color.WHITE
+    private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(65, 255, 255, 255)
         style = Paint.Style.STROKE
-        strokeWidth = 4.0f
-        strokeJoin = Paint.Join.ROUND
-        strokeCap = Paint.Cap.ROUND
+        strokeWidth = 2.2f
+    }
+
+    private val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
+        pathEffect = CornerPathEffect(3.0f)
     }
 
     private val path = android.graphics.Path()
@@ -186,7 +229,7 @@ class VehicleMarkerOverlay(
         if (primaryColor != primary || darkColor != dark) {
             primaryColor = primary
             darkColor = dark
-            arrowPaint.color = primary
+            circlePaint.color = primary
         }
     }
 
@@ -200,20 +243,25 @@ class VehicleMarkerOverlay(
         val cx = point.x.toFloat()
         val cy = point.y.toFloat()
 
+        // 1. Sombra e círculo na cor do tema
+        canvas.drawCircle(cx, cy + 2.0f, 38f, outerShadowPaint)
+        canvas.drawCircle(cx, cy + 1.2f, 34f, innerShadowPaint)
+        canvas.drawCircle(cx, cy, 31.5f, circlePaint)
+        canvas.drawCircle(cx, cy, 30.5f, borderPaint)
+
+        // 2. Seta branca interna rotacionada na direção do veículo
         canvas.save()
         val rotation = if (followHeading) 0f else location.bearing
         canvas.rotate(rotation, cx, cy)
 
         path.reset()
-        path.moveTo(cx, cy - 26f)
-        path.lineTo(cx + 17f, cy + 18f)
-        path.lineTo(cx, cy + 9f)
-        path.lineTo(cx - 17f, cy + 18f)
+        path.moveTo(cx, cy - 17.5f)
+        path.lineTo(cx + 14.5f, cy + 13.5f)
+        path.lineTo(cx, cy + 6.5f)
+        path.lineTo(cx - 14.5f, cy + 13.5f)
         path.close()
 
-        canvas.drawPath(path, shadowPaint)
         canvas.drawPath(path, arrowPaint)
-        canvas.drawPath(path, outlinePaint)
 
         canvas.restore()
     }

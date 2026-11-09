@@ -21,9 +21,11 @@ import androidx.compose.ui.unit.dp
 import com.joaohouto.clusterlauncher.media.MediaManager
 import androidx.compose.runtime.collectAsState
 import com.joaohouto.clusterlauncher.data.model.CarBrand
+import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.ui.cockpit.components.CarBrandEmblem
 import com.joaohouto.clusterlauncher.ui.cockpit.components.ClockWidget
+import com.joaohouto.clusterlauncher.ui.cockpit.components.FullBleedMediaCard
 import com.joaohouto.clusterlauncher.ui.cockpit.components.OfflineMapCard
 import com.joaohouto.clusterlauncher.ui.cockpit.components.QuickDockBar
 import com.joaohouto.clusterlauncher.ui.cockpit.components.SystemStatusRow
@@ -39,11 +41,14 @@ fun CockpitScreen(
     onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {},
     onOpenFullScreenMap: () -> Unit = {},
+    layoutPreset: CockpitLayoutPreset = CockpitLayoutPreset.CLASSIC,
     showMapOnHome: Boolean = true,
     isMapDarkMode: Boolean = false,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
     mapFollowHeading: Boolean = false,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
+    map3dPerspective: Boolean = false,
+    isMapPaused: Boolean = false,
     fullScreenMode: Boolean = false,
     mediaCardPosition: String = "right",
     swapCockpitColumns: Boolean = false,
@@ -53,6 +58,73 @@ fun CockpitScreen(
 
     val mediaState by MediaManager.mediaState.collectAsState()
     val showMediaCard = !hideMediaWhenNotPlaying || mediaState.isPlaying
+
+    if (layoutPreset == CockpitLayoutPreset.ANDROID_AUTO) {
+        Row(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = if (fullScreenMode) 12.dp else 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            when {
+                showMediaCard && showMapOnHome -> {
+                    if (swapCockpitColumns) {
+                        OfflineMapCard(
+                            modifier = Modifier
+                                .weight(0.60f)
+                                .fillMaxHeight(),
+                            isDarkMode = isMapDarkMode,
+                            followHeading = mapFollowHeading,
+                            is3dPerspective = map3dPerspective,
+                            isMapPaused = isMapPaused,
+                            onMapClick = onOpenFullScreenMap
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        FullBleedMediaCard(
+                            modifier = Modifier
+                                .weight(0.40f)
+                                .fillMaxHeight()
+                        )
+                    } else {
+                        FullBleedMediaCard(
+                            modifier = Modifier
+                                .weight(0.40f)
+                                .fillMaxHeight()
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        OfflineMapCard(
+                            modifier = Modifier
+                                .weight(0.60f)
+                                .fillMaxHeight(),
+                            isDarkMode = isMapDarkMode,
+                            followHeading = mapFollowHeading,
+                            is3dPerspective = map3dPerspective,
+                            isMapPaused = isMapPaused,
+                            onMapClick = onOpenFullScreenMap
+                        )
+                    }
+                }
+                showMapOnHome -> {
+                    OfflineMapCard(
+                        modifier = Modifier.fillMaxSize(),
+                        isDarkMode = isMapDarkMode,
+                        followHeading = mapFollowHeading,
+                        is3dPerspective = map3dPerspective,
+                        isMapPaused = isMapPaused,
+                        onMapClick = onOpenFullScreenMap
+                    )
+                }
+                else -> {
+                    FullBleedMediaCard(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+        return
+    }
+
     val isMediaOnLeft = mediaCardPosition == "left"
     val isMediaOnLeftAndVisible = isMediaOnLeft && showMediaCard
 
@@ -148,6 +220,8 @@ fun CockpitScreen(
                                 .weight(1f),
                             isDarkMode = isMapDarkMode,
                             followHeading = mapFollowHeading,
+                            is3dPerspective = map3dPerspective,
+                            isMapPaused = isMapPaused,
                             onMapClick = onOpenFullScreenMap
                         )
                     }

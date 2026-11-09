@@ -7,10 +7,12 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,6 +61,7 @@ fun MetallicButton(
     minSize: Dp = 56.dp,
     iconSize: Dp = 26.dp,
     textSize: TextUnit = 14.sp,
+    verticalLayout: Boolean = false,
     contentDescription: String? = null
 ) {
     val accent = LocalClusterAccent.current
@@ -114,29 +117,57 @@ fun MetallicButton(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = contentDescription ?: text,
-                        tint = contentColor,
-                        modifier = Modifier.size(iconSize)
-                    )
+            if (verticalLayout) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (icon != null) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = contentDescription ?: text,
+                            tint = contentColor,
+                            modifier = Modifier.size(iconSize)
+                        )
+                    }
+                    if (icon != null && !text.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
+                    if (!text.isNullOrEmpty()) {
+                        Text(
+                            text = text,
+                            color = contentColor,
+                            fontSize = textSize,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.6.sp
+                        )
+                    }
                 }
-                if (icon != null && !text.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.width(10.dp))
-                }
-                if (!text.isNullOrEmpty()) {
-                    Text(
-                        text = text,
-                        color = contentColor,
-                        fontSize = textSize,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.6.sp
-                    )
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (icon != null) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = contentDescription ?: text,
+                            tint = contentColor,
+                            modifier = Modifier.size(iconSize)
+                        )
+                    }
+                    if (icon != null && !text.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                    if (!text.isNullOrEmpty()) {
+                        Text(
+                            text = text,
+                            color = contentColor,
+                            fontSize = textSize,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.6.sp
+                        )
+                    }
                 }
             }
         }

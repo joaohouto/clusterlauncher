@@ -115,4 +115,27 @@ class MapProjectionHelperTest {
         assertEquals(-46.6333, target.longitude, 0.000001)
         assertEquals(0f, target.bearing, 0.001f)
     }
+
+    @Test
+    fun `when forwardOffset is enabled driving North, camera target shifts North ahead of vehicle`() {
+        val location = GpsLocationData(
+            latitude = -23.5505,
+            longitude = -46.6333,
+            bearing = 0f,
+            speedKmh = 60f,
+            hasFix = true
+        )
+
+        val target = MapProjectionHelper.calculateRoadAheadTarget(
+            location = location,
+            followHeading = true,
+            zoom = 16.0,
+            viewportHeightPx = 500,
+            forwardOffset = true
+        )
+
+        org.junit.Assert.assertTrue(target.latitude > location.latitude)
+        assertEquals(-46.6333, target.longitude, 0.000001)
+        assertEquals(0f, target.bearing, 0.001f)
+    }
 }

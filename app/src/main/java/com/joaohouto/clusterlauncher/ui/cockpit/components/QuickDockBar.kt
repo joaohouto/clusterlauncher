@@ -57,7 +57,7 @@ fun QuickDockBar(
     }
 }
 
-private fun launchSlotApp(
+internal fun launchSlotApp(
     context: Context,
     slot: DockSlot,
     onFallbackPicker: () -> Unit

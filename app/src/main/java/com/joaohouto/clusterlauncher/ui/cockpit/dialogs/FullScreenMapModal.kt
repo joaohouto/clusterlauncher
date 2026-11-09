@@ -64,7 +64,9 @@ import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.location.GpsLocationRepository
 import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
 import com.joaohouto.clusterlauncher.ui.cockpit.components.MapLibreMapHelper
+import com.joaohouto.clusterlauncher.ui.cockpit.components.MapLibreRenderTracker
 import com.joaohouto.clusterlauncher.ui.cockpit.components.MapProjectionHelper
+import com.joaohouto.clusterlauncher.ui.cockpit.components.OsmRenderTracker
 import com.joaohouto.clusterlauncher.ui.cockpit.components.OsmdroidMapHelper
 import com.joaohouto.clusterlauncher.ui.cockpit.components.VehicleMarkerOverlay
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
@@ -93,6 +95,7 @@ fun FullScreenMapModal(
     isDarkMode: Boolean = false,
     initialDarkMode: Boolean = isDarkMode,
     followHeading: Boolean = false,
+    is3dPerspective: Boolean = false,
     fullScreenMode: Boolean = false,
     onToggleDarkMode: ((Boolean) -> Unit)? = null,
     onDismiss: () -> Unit
@@ -121,6 +124,7 @@ fun FullScreenMapModal(
 
             if (mapState.isMapLoaded && activeFile != null && activeFile.exists()) {
                 if (mapState.isVectorMap) {
+                    val modalPitch = if (is3dPerspective) MapLibreMapHelper.PITCH_3D_DEGREES else MapLibreMapHelper.PITCH_2D_DEGREES
                     // Mapa Vetorial PBF via MapLibre Native
                     AndroidView(
                         factory = { ctx ->
@@ -132,7 +136,8 @@ fun FullScreenMapModal(
                                 initialZoom = 17.0,
                                 primaryColor = primaryColor,
                                 darkColor = darkColor,
-                                followVehicleHeading = followHeading
+                                followVehicleHeading = followHeading,
+                                is3dPerspective = is3dPerspective
                             ) { map ->
                                 mapLibreMap = map
                                 map.addOnCameraMoveStartedListener { reason ->
@@ -141,7 +146,10 @@ fun FullScreenMapModal(
                                     }
                                 }
                                 map.addOnCameraMoveListener {
-                                    currentZoom = map.cameraPosition.zoom.roundToInt()
+                                    val newZoom = map.cameraPosition.zoom.roundToInt()
+                                    if (newZoom != currentZoom) {
+                                        currentZoom = newZoom
+                                    }
                                 }
                             }
                             mapView.setOnTouchListener { _, event ->
@@ -154,22 +162,29 @@ fun FullScreenMapModal(
                             mapView
                         },
                         update = { mapView ->
-                            val map = mapLibreMap
-                            if (map != null && !isMapPanned) {
+                            val map = mapLibreMap ?: return@AndroidView
+                            val tracker = mapView.tag as? MapLibreRenderTracker
+                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, is3dPerspective, primaryColor)) {
+                                return@AndroidView
+                            }
+
+                            if (!isMapPanned) {
                                 val currentZ = map.cameraPosition.zoom
                                 val target = MapProjectionHelper.calculateRoadAheadTarget(
                                     location = locationState,
                                     followHeading = followHeading,
                                     zoom = currentZ,
-                                    viewportHeightPx = if (mapView.height > 0) mapView.height else 600
+                                    viewportHeightPx = if (mapView.height > 0) mapView.height else 600,
+                                    forwardOffset = is3dPerspective
                                 )
 
                                 val cameraPosition = CameraPosition.Builder()
                                     .target(LatLng(target.latitude, target.longitude))
                                     .zoom(currentZ)
+                                    .tilt(modalPitch)
                                     .bearing(target.bearing.toDouble())
                                     .build()
-                                map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 900)
+                                map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 850)
                             }
                             MapLibreMapHelper.updateVehicleLocation(
                                 mapView.context,
@@ -177,7 +192,8 @@ fun FullScreenMapModal(
                                 locationState,
                                 primaryColor,
                                 darkColor,
-                                followVehicleHeading = followHeading
+                                followVehicleHeading = followHeading,
+                                is3dPerspective = is3dPerspective
                             )
                         },
                         modifier = Modifier
@@ -221,7 +237,10 @@ fun FullScreenMapModal(
                                 override fun onScroll(event: ScrollEvent?): Boolean = false
 
                                 override fun onZoom(event: ZoomEvent?): Boolean {
-                                    currentZoom = mapView.zoomLevelDouble.roundToInt()
+                                    val newZoom = mapView.zoomLevelDouble.roundToInt()
+                                    if (newZoom != currentZoom) {
+                                        currentZoom = newZoom
+                                    }
                                     return false
                                 }
                             })
@@ -230,6 +249,11 @@ fun FullScreenMapModal(
                             mapView
                         },
                         update = { mapView ->
+                            val tracker = mapView.tag as? OsmRenderTracker
+                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, is3dPerspective, initialDarkMode, primaryColor)) {
+                                return@AndroidView
+                            }
+
                             if (initialDarkMode) {
                                 mapView.overlayManager.tilesOverlay.setColorFilter(OsmdroidMapHelper.DarkCockpitColorFilter)
                             } else {
@@ -241,7 +265,8 @@ fun FullScreenMapModal(
                                     location = locationState,
                                     followHeading = followHeading,
                                     zoom = mapView.zoomLevelDouble,
-                                    viewportHeightPx = if (mapView.height > 0) mapView.height else 600
+                                    viewportHeightPx = if (mapView.height > 0) mapView.height else 600,
+                                    forwardOffset = is3dPerspective
                                 )
                                 mapView.controller.setCenter(GeoPoint(target.latitude, target.longitude))
                                 mapView.mapOrientation = if (followHeading) -locationState.bearing else 0f
@@ -314,17 +339,33 @@ fun FullScreenMapModal(
                         )
                     }
 
+                    // Indicador circular do carro estilo Android Auto
+                    drawCircle(
+                        color = Color(0x66000000),
+                        radius = 30f,
+                        center = Offset(center.x, center.y + 2f)
+                    )
+                    drawCircle(
+                        color = accent,
+                        radius = 26f,
+                        center = center
+                    )
+                    drawCircle(
+                        color = Color(0x40FFFFFF),
+                        radius = 25f,
+                        center = center,
+                        style = Stroke(width = 1.5f)
+                    )
+
                     rotate(degrees = arrowRotation, pivot = center) {
                         val arrowPath = Path().apply {
-                            moveTo(center.x, center.y - 20f)
-                            lineTo(center.x + 14f, center.y + 15f)
-                            lineTo(center.x, center.y + 7f)
-                            lineTo(center.x - 14f, center.y + 15f)
+                            moveTo(center.x, center.y - 15f)
+                            lineTo(center.x + 12f, center.y + 11.5f)
+                            lineTo(center.x, center.y + 5.5f)
+                            lineTo(center.x - 12f, center.y + 11.5f)
                             close()
                         }
-                        drawPath(path = arrowPath, color = Color(0x99000000), style = Stroke(width = 5.5f))
-                        drawPath(path = arrowPath, color = accent)
-                        drawPath(path = arrowPath, color = Color.White, style = Stroke(width = 2.5f))
+                        drawPath(path = arrowPath, color = Color.White)
                     }
                 }
             }
@@ -413,12 +454,15 @@ fun FullScreenMapModal(
                                     location = locationState,
                                     followHeading = followHeading,
                                     zoom = currentZoom.toDouble(),
-                                    viewportHeightPx = 600
+                                    viewportHeightPx = 600,
+                                    forwardOffset = is3dPerspective
                                 )
                                 if (mapState.isVectorMap) {
                                     mapLibreMap?.let { map ->
+                                        val pitch = if (is3dPerspective) MapLibreMapHelper.PITCH_3D_DEGREES else MapLibreMapHelper.PITCH_2D_DEGREES
                                         val cameraPosition = CameraPosition.Builder()
                                             .target(LatLng(target.latitude, target.longitude))
+                                            .tilt(pitch)
                                             .bearing(target.bearing.toDouble())
                                             .build()
                                         map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition))

@@ -6,6 +6,7 @@
     <string name="slot_zlink">ZLINK5</string>
     <string name="slot_settings">SETTINGS</string>
     <string name="no_media_playing">No media playing</string>
+    <string name="no_track_playing">No track playing.</string>
     <string name="media_permission_title">Media control disabled</string>
     <string name="media_permission_desc">Tap here to grant media notification access in Android settings</string>
     <string name="select_app_title">Bind application to dock slot</string>
@@ -47,6 +48,8 @@
     <string name="map_dark_mode_desc">Applies dark/night color palette to the map</string>
     <string name="map_follow_heading">Rotate Map with Vehicle Heading</string>
     <string name="map_follow_heading_desc">Rotates the map according to vehicle compass heading</string>
+    <string name="map_3d_perspective">3D Navigation Perspective (Android Auto)</string>
+    <string name="map_3d_perspective_desc">Tilts the vector map in 3D and shifts the camera ahead to show more of the road</string>
     <string name="fullscreen_mode">Full Screen Mode</string>
     <string name="fullscreen_mode_desc">Hide status bar and system navigation buttons</string>
     <string name="media_card_position_title">Media Player Position</string>
@@ -93,4 +96,11 @@
     <string name="btn_change_app">Change App</string>
     <string name="error_bluetooth_app_not_found">Could not open Bluetooth settings</string>
     <string name="recenter_map">Center position</string>
+    <string name="layout_preset_title">Cockpit Layout Preset</string>
+    <string name="layout_preset_subtitle">Choose how the home screen and quick controls are organized</string>
+    <string name="layout_classic_name">Classic Cockpit</string>
+    <string name="layout_classic_desc">Instrument cluster, clock, map, media player and bottom dock on the home screen</string>
+    <string name="layout_android_auto_name">Android Auto (Split)</string>
+    <string name="layout_android_auto_desc" formatted="false">Full-height media player with background cover art (40%) and GPS map (60%); dock &amp; controls on page 2</string>
+    <string name="quick_actions_hub_title">Quick Controls &amp; Shortcuts</string>
 </resources>

@@ -6,6 +6,7 @@
     <string name="slot_zlink">ZLINK5</string>
     <string name="slot_settings">CONFIG</string>
     <string name="no_media_playing">Nenhuma mídia em reprodução</string>
+    <string name="no_track_playing">Nenhuma faixa em reprodução.</string>
     <string name="media_permission_title">Controle de mídia desativado</string>
     <string name="media_permission_desc">Toque aqui para conceder permissão de leitura de mídia nas configurações do Android</string>
     <string name="select_app_title">Vincular aplicativo ao slot</string>
@@ -47,6 +48,8 @@
     <string name="map_dark_mode_desc">Aplica estilo escuro/noturno ao mapa</string>
     <string name="map_follow_heading">Rotacionar Mapa com a Direção do Carro</string>
     <string name="map_follow_heading_desc">Gira o mapa conforme a direção (bússola) do veículo</string>
+    <string name="map_3d_perspective">Visão 3D de Navegação (Estilo Android Auto)</string>
+    <string name="map_3d_perspective_desc">Inclina o mapa em perspectiva 3D e posiciona o carro mais abaixo para mostrar mais a pista à frente</string>
     <string name="fullscreen_mode">Modo Tela Cheia</string>
     <string name="fullscreen_mode_desc">Oculta a barra de status e botões de navegação</string>
     <string name="media_card_position_title">Posição do Card de Mídia</string>
@@ -93,4 +96,11 @@
     <string name="btn_change_app">Alterar App</string>
     <string name="error_bluetooth_app_not_found">Não foi possível abrir as configurações de Bluetooth</string>
     <string name="recenter_map">Centralizar posição</string>
+    <string name="layout_preset_title">Padrão de Organização (Layout)</string>
+    <string name="layout_preset_subtitle">Escolha o formato da tela inicial e a disposição dos controles</string>
+    <string name="layout_classic_name">Cockpit Clássico</string>
+    <string name="layout_classic_desc">Emblema, relógio, mapa, mídia e barra de atalhos inferior na mesma tela</string>
+    <string name="layout_android_auto_name">Android Auto (Split)</string>
+    <string name="layout_android_auto_desc" formatted="false">Apenas Player com capa de fundo (40%) e Mapa GPS (60%) na tela inicial; atalhos e ajustes na página ao lado</string>
+    <string name="quick_actions_hub_title">Atalhos &amp; Controles Rápidos</string>
 </resources>

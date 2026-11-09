@@ -42,12 +42,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
 import com.joaohouto.clusterlauncher.data.receiver.UsbStateReceiver
 import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.media.NotificationListenerHelper
 import com.joaohouto.clusterlauncher.ui.cockpit.CockpitScreen
+import com.joaohouto.clusterlauncher.ui.cockpit.QuickActionsHubScreen
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.BluetoothAppPickerModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.CarBrandPickerModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.FullScreenMapModal
@@ -172,7 +174,9 @@ private fun LauncherMainContent(
     val showMapOnHome by viewModel.showMapOnHome.collectAsState()
     val mapDarkMode by viewModel.mapDarkMode.collectAsState()
     val mapFollowHeading by viewModel.mapFollowHeading.collectAsState()
+    val map3dPerspective by viewModel.map3dPerspective.collectAsState()
     val accentThemeId by viewModel.accentThemeId.collectAsState()
+    val cockpitLayoutPreset by viewModel.cockpitLayoutPreset.collectAsState()
     val mediaCardPosition by viewModel.mediaCardPosition.collectAsState()
     val swapCockpitColumns by viewModel.swapCockpitColumns.collectAsState()
     val hideMediaWhenNotPlaying by viewModel.hideMediaWhenNotPlaying.collectAsState()
@@ -182,8 +186,10 @@ private fun LauncherMainContent(
         if (apps.isEmpty()) listOf(emptyList()) else apps.chunked(10)
     }
 
+    val isAndroidAutoPreset = cockpitLayoutPreset == CockpitLayoutPreset.ANDROID_AUTO
     val totalAppSlides = appSlides.size
-    val pageCount = 1 + totalAppSlides
+    val extraPagesBeforeDrawer = if (isAndroidAutoPreset) 2 else 1
+    val pageCount = extraPagesBeforeDrawer + totalAppSlides
     val pagerState = rememberPagerState(pageCount = { pageCount })
 
     var activeSlotForPicker by remember { mutableStateOf<DockSlot?>(null) }
@@ -222,39 +228,55 @@ private fun LauncherMainContent(
             userScrollEnabled = !showFullScreenMap,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            if (page == 0) {
-                CockpitScreen(
-                    dockSlots = dockSlots,
-                    selectedCarBrand = selectedCarBrand,
-                    onSlotLongClick = { slot -> activeSlotForPicker = slot },
-                    onBrandClick = { showBrandPicker = true },
-                    onBluetoothClick = { viewModel.launchBluetooth(context) },
-                    onBluetoothLongClick = { showBluetoothPicker = true },
-                    onSettingsClick = { showSettingsModal = true },
-                    onOpenFullScreenMap = onOpenFullScreenMap,
-                    showMapOnHome = showMapOnHome,
-                    isMapDarkMode = mapDarkMode,
-                    onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
-                    mapFollowHeading = mapFollowHeading,
-                    onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
-                    fullScreenMode = fullScreenMode,
-                    mediaCardPosition = mediaCardPosition,
-                    swapCockpitColumns = swapCockpitColumns,
-                    hideMediaWhenNotPlaying = hideMediaWhenNotPlaying
-                )
-            } else {
-                val slideIndex = page - 1
-                val slideApps = appSlides.getOrElse(slideIndex) { emptyList() }
-                AppSlideScreen(
-                    apps = slideApps,
-                    onAppClick = { app -> viewModel.launchApp(viewModel.getApplication(), app.packageName) },
-                    onPinToDock = { slotType, app -> viewModel.assignAppToSlot(slotType, app.packageName) }
-                )
+            when {
+                page == 0 -> {
+                    CockpitScreen(
+                        dockSlots = dockSlots,
+                        selectedCarBrand = selectedCarBrand,
+                        onSlotLongClick = { slot -> activeSlotForPicker = slot },
+                        onBrandClick = { showBrandPicker = true },
+                        onBluetoothClick = { viewModel.launchBluetooth(context) },
+                        onBluetoothLongClick = { showBluetoothPicker = true },
+                        onSettingsClick = { showSettingsModal = true },
+                        onOpenFullScreenMap = onOpenFullScreenMap,
+                        layoutPreset = cockpitLayoutPreset,
+                        showMapOnHome = showMapOnHome,
+                        isMapDarkMode = mapDarkMode,
+                        onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
+                        mapFollowHeading = mapFollowHeading,
+                        onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
+                        map3dPerspective = map3dPerspective,
+                        isMapPaused = showFullScreenMap,
+                        fullScreenMode = fullScreenMode,
+                        mediaCardPosition = mediaCardPosition,
+                        swapCockpitColumns = swapCockpitColumns,
+                        hideMediaWhenNotPlaying = hideMediaWhenNotPlaying
+                    )
+                }
+                isAndroidAutoPreset && page == 1 -> {
+                    QuickActionsHubScreen(
+                        dockSlots = dockSlots,
+                        onSlotLongClick = { slot -> activeSlotForPicker = slot },
+                        onBluetoothClick = { viewModel.launchBluetooth(context) },
+                        onBluetoothLongClick = { showBluetoothPicker = true },
+                        onSettingsClick = { showSettingsModal = true }
+                    )
+                }
+                else -> {
+                    val slideIndex = page - extraPagesBeforeDrawer
+                    val slideApps = appSlides.getOrElse(slideIndex) { emptyList() }
+                    AppSlideScreen(
+                        apps = slideApps,
+                        onAppClick = { app -> viewModel.launchApp(viewModel.getApplication(), app.packageName) },
+                        onPinToDock = { slotType, app -> viewModel.assignAppToSlot(slotType, app.packageName) }
+                    )
+                }
             }
         }
 
         // Slide pagination indicator dots (only visible when outside Cockpit)
-        if (pagerState.currentPage > 0 && totalAppSlides > 1) {
+        val totalSecondaryPages = pageCount - 1
+        if (pagerState.currentPage > 0 && totalSecondaryPages > 1) {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -262,9 +284,9 @@ private fun LauncherMainContent(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val activeSlideIndex = (pagerState.currentPage - 1).coerceIn(0, totalAppSlides - 1)
-                for (i in 0 until totalAppSlides) {
-                    val isActive = i == activeSlideIndex
+                val activeSecondaryIndex = (pagerState.currentPage - 1).coerceIn(0, totalSecondaryPages - 1)
+                for (i in 0 until totalSecondaryPages) {
+                    val isActive = i == activeSecondaryIndex
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 4.dp)
@@ -305,12 +327,16 @@ private fun LauncherMainContent(
                 selectedBrand = selectedCarBrand,
                 selectedAccentId = accentThemeId,
                 onSelectAccent = { viewModel.selectAccentTheme(it) },
+                selectedLayoutPreset = cockpitLayoutPreset,
+                onSelectLayoutPreset = { viewModel.setCockpitLayoutPreset(it) },
                 showMapOnHome = showMapOnHome,
                 onToggleShowMap = { viewModel.setShowMapOnHome(it) },
                 isMapDarkMode = mapDarkMode,
                 onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
                 mapFollowHeading = mapFollowHeading,
                 onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
+                map3dPerspective = map3dPerspective,
+                onToggleMap3dPerspective = { viewModel.setMap3dPerspective(it) },
                 fullScreenMode = fullScreenMode,
                 onToggleFullScreenMode = { viewModel.setFullScreenMode(it) },
                 mediaCardPosition = mediaCardPosition,
@@ -347,6 +373,7 @@ private fun LauncherMainContent(
             FullScreenMapModal(
                 initialDarkMode = mapDarkMode,
                 followHeading = mapFollowHeading,
+                is3dPerspective = map3dPerspective,
                 fullScreenMode = fullScreenMode || showFullScreenMap,
                 onToggleDarkMode = { viewModel.setMapDarkMode(it) },
                 onDismiss = onCloseFullScreenMap

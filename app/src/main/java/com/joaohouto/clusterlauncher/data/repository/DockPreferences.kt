@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
 import kotlinx.coroutines.flow.Flow
@@ -177,6 +178,34 @@ class DockPreferences(private val context: Context) {
     suspend fun setHideMediaWhenNotPlaying(hide: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[HIDE_MEDIA_WHEN_NOT_PLAYING_KEY] = hide
+        }
+    }
+
+    private val COCKPIT_LAYOUT_PRESET_KEY = stringPreferencesKey("cockpit_layout_preset")
+
+    fun getCockpitLayoutPresetFlow(): Flow<CockpitLayoutPreset> {
+        return context.dataStore.data.map { preferences ->
+            CockpitLayoutPreset.fromId(preferences[COCKPIT_LAYOUT_PRESET_KEY])
+        }
+    }
+
+    suspend fun setCockpitLayoutPreset(preset: CockpitLayoutPreset) {
+        context.dataStore.edit { preferences ->
+            preferences[COCKPIT_LAYOUT_PRESET_KEY] = preset.id
+        }
+    }
+
+    private val MAP_3D_PERSPECTIVE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("map_3d_perspective")
+
+    fun getMap3dPerspectiveFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[MAP_3D_PERSPECTIVE_KEY] ?: false
+        }
+    }
+
+    suspend fun setMap3dPerspective(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[MAP_3D_PERSPECTIVE_KEY] = enabled
         }
     }
 }
