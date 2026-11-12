@@ -238,7 +238,7 @@ fun LauncherSettingsModal(
                                 color = Color(0xFF1E222B)
                             ) {
                                 Text(
-                                    text = "v1.1",
+                                    text = "v1.6",
                                     color = TextSecondary,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,

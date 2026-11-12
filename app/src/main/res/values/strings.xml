@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">Cluster Launcher</string>
+    <string name="apps">Apps</string>
+    <string name="bluetooth">Bluetooth</string>
     <string name="slot_music">MUSIC</string>
     <string name="slot_gps">NAVIGATION</string>
     <string name="slot_radio">RADIO</string>

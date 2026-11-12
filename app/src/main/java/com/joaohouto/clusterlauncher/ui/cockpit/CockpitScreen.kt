@@ -23,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import com.joaohouto.clusterlauncher.data.model.CarBrand
 import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.model.DockSlot
+import com.joaohouto.clusterlauncher.ui.cockpit.components.AndroidAutoVerticalRail
 import com.joaohouto.clusterlauncher.ui.cockpit.components.CarBrandEmblem
 import com.joaohouto.clusterlauncher.ui.cockpit.components.ClockWidget
 import com.joaohouto.clusterlauncher.ui.cockpit.components.FullBleedMediaCard
@@ -37,6 +38,7 @@ fun CockpitScreen(
     selectedCarBrand: CarBrand,
     onSlotLongClick: (DockSlot) -> Unit,
     onBrandClick: () -> Unit,
+    onOpenDrawer: () -> Unit = {},
     onBluetoothClick: () -> Unit = {},
     onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {},
@@ -63,40 +65,76 @@ fun CockpitScreen(
         Row(
             modifier = modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = if (fullScreenMode) 12.dp else 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(
+                    start = 12.dp,
+                    end = 16.dp,
+                    top = if (fullScreenMode) 10.dp else 12.dp,
+                    bottom = if (fullScreenMode) 10.dp else 12.dp
+                ),
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            when {
-                showMediaCard && showMapOnHome -> {
-                    if (swapCockpitColumns) {
+            // Barra Lateral Vertical Estilo Android Auto (Apenas Ícones)
+            AndroidAutoVerticalRail(
+                dockSlots = dockSlots,
+                onSlotLongClick = onSlotLongClick,
+                onOpenDrawer = onOpenDrawer,
+                onBluetoothClick = onBluetoothClick,
+                onBluetoothLongClick = onBluetoothLongClick,
+                onSettingsClick = onSettingsClick
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Área de Conteúdo Split Screen do Android Auto
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                when {
+                    showMediaCard && showMapOnHome -> {
+                        if (swapCockpitColumns) {
+                            OfflineMapCard(
+                                modifier = Modifier
+                                    .weight(0.60f)
+                                    .fillMaxHeight(),
+                                isDarkMode = isMapDarkMode,
+                                followHeading = mapFollowHeading,
+                                is3dPerspective = map3dPerspective,
+                                isMapPaused = isMapPaused,
+                                onMapClick = onOpenFullScreenMap
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            FullBleedMediaCard(
+                                modifier = Modifier
+                                    .weight(0.40f)
+                                    .fillMaxHeight()
+                            )
+                        } else {
+                            FullBleedMediaCard(
+                                modifier = Modifier
+                                    .weight(0.40f)
+                                    .fillMaxHeight()
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            OfflineMapCard(
+                                modifier = Modifier
+                                    .weight(0.60f)
+                                    .fillMaxHeight(),
+                                isDarkMode = isMapDarkMode,
+                                followHeading = mapFollowHeading,
+                                is3dPerspective = map3dPerspective,
+                                isMapPaused = isMapPaused,
+                                onMapClick = onOpenFullScreenMap
+                            )
+                        }
+                    }
+                    showMapOnHome -> {
                         OfflineMapCard(
-                            modifier = Modifier
-                                .weight(0.60f)
-                                .fillMaxHeight(),
-                            isDarkMode = isMapDarkMode,
-                            followHeading = mapFollowHeading,
-                            is3dPerspective = map3dPerspective,
-                            isMapPaused = isMapPaused,
-                            onMapClick = onOpenFullScreenMap
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        FullBleedMediaCard(
-                            modifier = Modifier
-                                .weight(0.40f)
-                                .fillMaxHeight()
-                        )
-                    } else {
-                        FullBleedMediaCard(
-                            modifier = Modifier
-                                .weight(0.40f)
-                                .fillMaxHeight()
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        OfflineMapCard(
-                            modifier = Modifier
-                                .weight(0.60f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.fillMaxSize(),
                             isDarkMode = isMapDarkMode,
                             followHeading = mapFollowHeading,
                             is3dPerspective = map3dPerspective,
@@ -104,21 +142,11 @@ fun CockpitScreen(
                             onMapClick = onOpenFullScreenMap
                         )
                     }
-                }
-                showMapOnHome -> {
-                    OfflineMapCard(
-                        modifier = Modifier.fillMaxSize(),
-                        isDarkMode = isMapDarkMode,
-                        followHeading = mapFollowHeading,
-                        is3dPerspective = map3dPerspective,
-                        isMapPaused = isMapPaused,
-                        onMapClick = onOpenFullScreenMap
-                    )
-                }
-                else -> {
-                    FullBleedMediaCard(
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    else -> {
+                        FullBleedMediaCard(
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }

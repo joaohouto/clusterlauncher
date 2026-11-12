@@ -186,9 +186,8 @@ private fun LauncherMainContent(
         if (apps.isEmpty()) listOf(emptyList()) else apps.chunked(10)
     }
 
-    val isAndroidAutoPreset = cockpitLayoutPreset == CockpitLayoutPreset.ANDROID_AUTO
     val totalAppSlides = appSlides.size
-    val extraPagesBeforeDrawer = if (isAndroidAutoPreset) 2 else 1
+    val extraPagesBeforeDrawer = 1
     val pageCount = extraPagesBeforeDrawer + totalAppSlides
     val pagerState = rememberPagerState(pageCount = { pageCount })
 
@@ -228,13 +227,18 @@ private fun LauncherMainContent(
             userScrollEnabled = !showFullScreenMap,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            when {
-                page == 0 -> {
+            when (page) {
+                0 -> {
                     CockpitScreen(
                         dockSlots = dockSlots,
                         selectedCarBrand = selectedCarBrand,
                         onSlotLongClick = { slot -> activeSlotForPicker = slot },
                         onBrandClick = { showBrandPicker = true },
+                        onOpenDrawer = {
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(1)
+                            }
+                        },
                         onBluetoothClick = { viewModel.launchBluetooth(context) },
                         onBluetoothLongClick = { showBluetoothPicker = true },
                         onSettingsClick = { showSettingsModal = true },
@@ -251,15 +255,6 @@ private fun LauncherMainContent(
                         mediaCardPosition = mediaCardPosition,
                         swapCockpitColumns = swapCockpitColumns,
                         hideMediaWhenNotPlaying = hideMediaWhenNotPlaying
-                    )
-                }
-                isAndroidAutoPreset && page == 1 -> {
-                    QuickActionsHubScreen(
-                        dockSlots = dockSlots,
-                        onSlotLongClick = { slot -> activeSlotForPicker = slot },
-                        onBluetoothClick = { viewModel.launchBluetooth(context) },
-                        onBluetoothLongClick = { showBluetoothPicker = true },
-                        onSettingsClick = { showSettingsModal = true }
                     )
                 }
                 else -> {
