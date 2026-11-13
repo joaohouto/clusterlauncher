@@ -42,7 +42,7 @@ import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Map
-import androidx.compose.material.icons.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
@@ -238,7 +238,7 @@ fun LauncherSettingsModal(
                                 color = Color(0xFF1E222B)
                             ) {
                                 Text(
-                                    text = "v1.6",
+                                    text = "v1.6.1",
                                     color = TextSecondary,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -1778,7 +1778,7 @@ private fun SystemSettingsPanel(
             Spacer(modifier = Modifier.width(6.dp))
             Text(text = "joaohouto.github.io/clusterlauncher", color = TextDisabled, fontSize = 11.sp)
             Spacer(modifier = Modifier.width(4.dp))
-            Icon(imageVector = Icons.Rounded.OpenInNew, contentDescription = null, tint = TextDisabled, modifier = Modifier.size(12.dp))
+            Icon(imageVector = Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, tint = TextDisabled, modifier = Modifier.size(12.dp))
         }
     }
 }

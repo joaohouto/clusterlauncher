@@ -186,9 +186,12 @@ private fun LauncherMainContent(
         if (apps.isEmpty()) listOf(emptyList()) else apps.chunked(10)
     }
 
+    val isAndroidAuto = cockpitLayoutPreset == CockpitLayoutPreset.ANDROID_AUTO
+    var isAndroidAutoDrawerOpen by remember { mutableStateOf(false) }
+
     val totalAppSlides = appSlides.size
     val extraPagesBeforeDrawer = 1
-    val pageCount = extraPagesBeforeDrawer + totalAppSlides
+    val pageCount = if (isAndroidAuto) 1 else extraPagesBeforeDrawer + totalAppSlides
     val pagerState = rememberPagerState(pageCount = { pageCount })
 
     var activeSlotForPicker by remember { mutableStateOf<DockSlot?>(null) }
@@ -196,19 +199,30 @@ private fun LauncherMainContent(
     var showSettingsModal by remember { mutableStateOf(false) }
     var showBluetoothPicker by remember { mutableStateOf(false) }
 
-    // React to Home button or onNewIntent
-    LaunchedEffect(scrollToCockpitTrigger) {
-        if (scrollToCockpitTrigger > 0 && pagerState.currentPage != 0) {
-            pagerState.animateScrollToPage(0)
+    LaunchedEffect(isAndroidAuto) {
+        if (!isAndroidAuto) {
+            isAndroidAutoDrawerOpen = false
+        } else if (pagerState.currentPage != 0) {
+            pagerState.scrollToPage(0)
         }
     }
 
-    // BackHandler: if on full screen map, close it; if on Drawer, return to Cockpit
-    BackHandler(enabled = showFullScreenMap || pagerState.currentPage != 0) {
-        if (showFullScreenMap) {
-            onCloseFullScreenMap()
-        } else {
-            coroutineScope.launch {
+    // React to Home button or onNewIntent
+    LaunchedEffect(scrollToCockpitTrigger) {
+        if (scrollToCockpitTrigger > 0) {
+            isAndroidAutoDrawerOpen = false
+            if (pagerState.currentPage != 0) {
+                pagerState.animateScrollToPage(0)
+            }
+        }
+    }
+
+    // BackHandler: if on full screen map, close it; if Android Auto drawer is open, close it; if on Drawer, return to Cockpit
+    BackHandler(enabled = showFullScreenMap || isAndroidAutoDrawerOpen || pagerState.currentPage != 0) {
+        when {
+            showFullScreenMap -> onCloseFullScreenMap()
+            isAndroidAutoDrawerOpen -> isAndroidAutoDrawerOpen = false
+            else -> coroutineScope.launch {
                 pagerState.animateScrollToPage(0)
             }
         }
@@ -235,8 +249,12 @@ private fun LauncherMainContent(
                         onSlotLongClick = { slot -> activeSlotForPicker = slot },
                         onBrandClick = { showBrandPicker = true },
                         onOpenDrawer = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(1)
+                            if (isAndroidAuto) {
+                                isAndroidAutoDrawerOpen = !isAndroidAutoDrawerOpen
+                            } else {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(1)
+                                }
                             }
                         },
                         onBluetoothClick = { viewModel.launchBluetooth(context) },
@@ -250,11 +268,15 @@ private fun LauncherMainContent(
                         mapFollowHeading = mapFollowHeading,
                         onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
                         map3dPerspective = map3dPerspective,
-                        isMapPaused = showFullScreenMap,
+                        isMapPaused = showFullScreenMap || isAndroidAutoDrawerOpen,
                         fullScreenMode = fullScreenMode,
                         mediaCardPosition = mediaCardPosition,
                         swapCockpitColumns = swapCockpitColumns,
-                        hideMediaWhenNotPlaying = hideMediaWhenNotPlaying
+                        hideMediaWhenNotPlaying = hideMediaWhenNotPlaying,
+                        apps = apps,
+                        isAndroidAutoDrawerOpen = isAndroidAutoDrawerOpen,
+                        onAppClick = { app -> viewModel.launchApp(viewModel.getApplication(), app.packageName) },
+                        onPinToDock = { slotType, app -> viewModel.assignAppToSlot(slotType, app.packageName) }
                     )
                 }
                 else -> {

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BluetoothConnected
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -72,6 +73,7 @@ fun AndroidAutoVerticalRail(
     dockSlots: List<DockSlot>,
     onSlotLongClick: (DockSlot) -> Unit,
     onOpenDrawer: () -> Unit = {},
+    isDrawerOpen: Boolean = false,
     onBluetoothClick: () -> Unit = {},
     onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {},
@@ -113,18 +115,22 @@ fun AndroidAutoVerticalRail(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Seção Superior: Botão Apps (Drawer)
+        // Seção Superior: Botão Apps (Drawer) / Retorno ao Painel
         Box(
             modifier = Modifier
                 .size(62.dp)
                 .clip(CircleShape)
-                .background(accent.copy(alpha = 0.18f))
-                .border(1.5.dp, accent.copy(alpha = 0.6f), CircleShape)
+                .background(accent.copy(alpha = if (isDrawerOpen) 0.32f else 0.18f))
+                .border(
+                    width = if (isDrawerOpen) 2.dp else 1.5.dp,
+                    color = accent.copy(alpha = if (isDrawerOpen) 0.9f else 0.6f),
+                    shape = CircleShape
+                )
                 .clickable(onClick = onOpenDrawer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Rounded.Apps,
+                imageVector = if (isDrawerOpen) Icons.Rounded.Dashboard else Icons.Rounded.Apps,
                 contentDescription = stringResource(R.string.apps),
                 tint = accent,
                 modifier = Modifier.size(34.dp)
