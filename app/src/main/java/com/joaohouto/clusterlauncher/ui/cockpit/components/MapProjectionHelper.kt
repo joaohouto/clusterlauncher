@@ -1,6 +1,7 @@
 package com.joaohouto.clusterlauncher.ui.cockpit.components
 
 import com.joaohouto.clusterlauncher.data.location.GpsLocationData
+import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -18,6 +19,16 @@ object MapProjectionHelper {
         val bearing: Float
     )
 
+    fun resolveValidLat(location: GpsLocationData): Double {
+        if (location.latitude != 0.0) return location.latitude
+        return MBTilesRepository.mapState.value.centerLat ?: -23.5505
+    }
+
+    fun resolveValidLon(location: GpsLocationData): Double {
+        if (location.longitude != 0.0) return location.longitude
+        return MBTilesRepository.mapState.value.centerLon ?: -46.6333
+    }
+
     /**
      * Retorna as coordenadas de foco da câmera.
      * Quando [forwardOffset] é true, desloca o centro da câmera na direção da visão
@@ -30,8 +41,8 @@ object MapProjectionHelper {
         viewportHeightPx: Int = 400,
         forwardOffset: Boolean = false
     ): ProjectedTarget {
-        val lat = if (location.latitude != 0.0) location.latitude else -23.5505
-        val lon = if (location.longitude != 0.0) location.longitude else -46.6333
+        val lat = resolveValidLat(location)
+        val lon = resolveValidLon(location)
         val cameraBearing = if (followHeading) location.bearing else 0f
 
         if (!forwardOffset) {

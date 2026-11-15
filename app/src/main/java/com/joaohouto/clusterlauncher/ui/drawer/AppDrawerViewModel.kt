@@ -89,7 +89,7 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
+            initialValue = true
         )
 
     fun setMapFollowHeading(follow: Boolean) {
@@ -174,7 +174,7 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = CockpitLayoutPreset.CLASSIC
+            initialValue = CockpitLayoutPreset.ANDROID_AUTO
         )
 
     fun setCockpitLayoutPreset(preset: CockpitLayoutPreset) {
@@ -187,12 +187,25 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
+            initialValue = true
         )
 
     fun setMap3dPerspective(enabled: Boolean) {
         viewModelScope.launch {
             dockPreferences.setMap3dPerspective(enabled)
+        }
+    }
+
+    val uiScalePercent: StateFlow<Int> = dockPreferences.getUiScalePercentFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 100
+        )
+
+    fun setUiScalePercent(percent: Int) {
+        viewModelScope.launch {
+            dockPreferences.setUiScalePercent(percent)
         }
     }
 

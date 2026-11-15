@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -48,227 +49,22 @@ import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.media.MediaManager
-import com.joaohouto.clusterlauncher.ui.components.MetallicButton
-import com.joaohouto.clusterlauncher.ui.components.MetallicButtonStyle
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
-import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
 
 private val CardShape = RoundedCornerShape(16.dp)
-private val CoverShape = RoundedCornerShape(12.dp)
-
-@Composable
-fun UniversalMediaCard(
-    onOpenPlayer: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    val mediaState by MediaManager.mediaState.collectAsState()
-    val accent = LocalClusterAccent.current.primary
-
-    val backgroundBrush = remember {
-        Brush.verticalGradient(
-            colors = listOf(Color(0xFF181A1F), Color(0xFF121316))
-        )
-    }
-
-    Surface(
-        modifier = modifier
-            .clip(CardShape)
-            .border(BorderStroke(1.dp, SurfaceCardBorder), CardShape)
-            .clickable(onClick = onOpenPlayer),
-        shape = CardShape,
-        color = Color.Transparent
-    ) {
-        Box(
-            modifier = Modifier
-                .background(backgroundBrush)
-                .fillMaxWidth()
-                .padding(18.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val albumArtImage = remember(mediaState.albumArtBitmap) {
-                    mediaState.albumArtBitmap?.asImageBitmap()
-                }
-
-                // Album Art (136dp x 136dp) with resilient fallback
-                Box(
-                    modifier = Modifier
-                        .size(136.dp)
-                        .clip(CoverShape)
-                        .background(SurfaceCard)
-                        .border(1.dp, SurfaceCardBorder, CoverShape)
-                        .clickable(onClick = onOpenPlayer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when {
-                        albumArtImage != null -> {
-                            Image(
-                                bitmap = albumArtImage,
-                                contentDescription = mediaState.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        mediaState.albumArtUri != null -> {
-                            SubcomposeAsyncImage(
-                                model = mediaState.albumArtUri,
-                                contentDescription = mediaState.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
-                                loading = { MusicCoverFallback() },
-                                error = { MusicCoverFallback() }
-                            )
-                        }
-                        else -> {
-                            MusicCoverFallback()
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(18.dp))
-
-                // Track title, optional synchronized lyrics, and artist
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(onClick = onOpenPlayer),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    if (!mediaState.lyricsLine.isNullOrBlank()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.GraphicEq,
-                                contentDescription = null,
-                                tint = accent,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = mediaState.lyricsLine.orEmpty(),
-                                color = accent,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = if (mediaState.title.isNotBlank()) mediaState.title else stringResource(R.string.no_track_playing),
-                        color = TextPrimary,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (mediaState.artist.isNotEmpty()) mediaState.artist else stringResource(R.string.select_folder_to_play),
-                        color = TextSecondary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                // Transport Buttons
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    MetallicButton(
-                        onClick = { MediaManager.skipToPrevious() },
-                        icon = Icons.Rounded.SkipPrevious,
-                        modifier = Modifier.size(68.dp),
-                        iconSize = 36.dp,
-                        contentDescription = stringResource(R.string.desc_previous)
-                    )
-
-                    MetallicButton(
-                        onClick = { MediaManager.playPause() },
-                        icon = if (mediaState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        style = if (mediaState.isPlaying) MetallicButtonStyle.Accent else MetallicButtonStyle.Standard,
-                        modifier = Modifier.size(80.dp),
-                        iconSize = 44.dp,
-                        contentDescription = if (mediaState.isPlaying) stringResource(R.string.desc_pause) else stringResource(R.string.desc_play)
-                    )
-
-                    MetallicButton(
-                        onClick = { MediaManager.skipToNext() },
-                        icon = Icons.Rounded.SkipNext,
-                        modifier = Modifier.size(68.dp),
-                        iconSize = 36.dp,
-                        contentDescription = stringResource(R.string.desc_next)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MusicCoverFallback(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF282B33),
-                        Color(0xFF16181C),
-                        Color(0xFF0C0D0F)
-                    )
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .border(1.dp, Color(0x18FFFFFF), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .size(74.dp)
-                .border(1.dp, Color(0x20FFFFFF), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF1C1E24))
-                .border(1.5.dp, LocalClusterAccent.current.primary, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MusicNote,
-                contentDescription = null,
-                tint = TextPrimary,
-                modifier = Modifier.size(26.dp)
-            )
-        }
-    }
-}
 
 /**
  * Card vertical de mídia em tela cheia (estilo Android Auto Coolwalk),
- * com capa do álbum preenchendo todo o fundo, gradiente de contraste e controles na base.
+ * com capa do álbum preenchendo todo o fundo, gradiente de contraste,
+ * botão "X" para fechar/ocultar no canto superior direito e controles na base.
  */
 @Composable
 fun FullBleedMediaCard(
     onOpenPlayer: () -> Unit = {},
+    onCloseCard: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val mediaState by MediaManager.mediaState.collectAsState()
@@ -290,13 +86,14 @@ fun FullBleedMediaCard(
                 .fillMaxSize()
                 .clickable(onClick = onOpenPlayer)
         ) {
-            // Camada 1: Capa do álbum preenchendo 100% do card
+            // Camada 1: Capa do álbum preenchendo 100% do card em alta qualidade
             when {
                 albumArtImage != null -> {
                     Image(
                         bitmap = albumArtImage,
                         contentDescription = mediaState.title,
                         contentScale = ContentScale.Crop,
+                        filterQuality = FilterQuality.High,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -305,6 +102,7 @@ fun FullBleedMediaCard(
                         model = mediaState.albumArtUri,
                         contentDescription = mediaState.title,
                         contentScale = ContentScale.Crop,
+                        filterQuality = FilterQuality.High,
                         modifier = Modifier.fillMaxSize(),
                         loading = { FullBleedCoverFallback() },
                         error = { FullBleedCoverFallback() }
@@ -331,7 +129,29 @@ fun FullBleedMediaCard(
                     )
             )
 
-            // Camada 3: Informações da música + barra de progresso + controles na parte inferior
+            // Botão "X" no canto superior direito para fechar/ocultar o card de música
+            if (onCloseCard != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(14.dp)
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x880D0F14))
+                        .border(1.dp, Color(0x40FFFFFF), CircleShape)
+                        .clickable(onClick = onCloseCard),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = stringResource(R.string.btn_close),
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Camada 3: Informações da música + barra de progresso sólida na cor accent + controles na parte inferior
             val hasTrack = mediaState.title.isNotBlank()
             val displayTitle = if (hasTrack) mediaState.title else stringResource(R.string.no_track_playing)
             val progress = if (hasTrack && mediaState.durationMs > 0L) {
@@ -347,29 +167,6 @@ fun FullBleedMediaCard(
                     .padding(horizontal = 24.dp, vertical = 22.dp),
                 verticalArrangement = Arrangement.Bottom
             ) {
-                if (!mediaState.lyricsLine.isNullOrBlank()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.GraphicEq,
-                            contentDescription = null,
-                            tint = accent,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = mediaState.lyricsLine.orEmpty(),
-                            color = accent,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
                 Text(
                     text = displayTitle,
                     color = if (hasTrack) Color.White else TextSecondary,
@@ -391,7 +188,7 @@ fun FullBleedMediaCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Barra de progresso real da faixa
+                // Barra de progresso 100% na cor accent
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -404,11 +201,7 @@ fun FullBleedMediaCard(
                             modifier = Modifier
                                 .fillMaxWidth(progress)
                                 .fillMaxHeight()
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(accent, Color.White)
-                                    )
-                                )
+                                .background(accent)
                         )
                     }
                 }

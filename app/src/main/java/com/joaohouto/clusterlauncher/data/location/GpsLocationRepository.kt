@@ -22,6 +22,10 @@ import kotlinx.coroutines.flow.asStateFlow
 object GpsLocationRepository {
 
     private const val TAG = "GpsLocationRepository"
+    private const val PREFS_NAME = "cluster_gps_prefs"
+    private const val KEY_LAST_LAT = "last_lat"
+    private const val KEY_LAST_LON = "last_lon"
+    private const val KEY_LAST_BEARING = "last_bearing"
 
     private val _locationState = MutableStateFlow(GpsLocationData())
     val locationState: StateFlow<GpsLocationData> = _locationState.asStateFlow()
@@ -29,6 +33,7 @@ object GpsLocationRepository {
     private val _hasPermission = MutableStateFlow(false)
     val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()
 
+    private var appContext: Context? = null
     private var locationManager: LocationManager? = null
     private var isListening = false
     private var gnssCallback: GnssStatus.Callback? = null
@@ -146,6 +151,7 @@ object GpsLocationRepository {
                 hasFix = true,
                 timestamp = location.time
             )
+            saveLastLocationToPrefs(location.latitude, location.longitude, newBearing)
         }
 
         @Deprecated("Deprecated in Java")
@@ -170,10 +176,41 @@ object GpsLocationRepository {
         return granted
     }
 
+    private fun saveLastLocationToPrefs(lat: Double, lon: Double, bearing: Float) {
+        val ctx = appContext ?: return
+        if (lat == 0.0 && lon == 0.0) return
+        try {
+            ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putString(KEY_LAST_LAT, lat.toString())
+                .putString(KEY_LAST_LON, lon.toString())
+                .putFloat(KEY_LAST_BEARING, bearing)
+                .apply()
+        } catch (_: Exception) {}
+    }
+
+    private fun restoreLastLocationFromPrefs(context: Context) {
+        if (_locationState.value.latitude != 0.0 || _locationState.value.longitude != 0.0) return
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val lat = prefs.getString(KEY_LAST_LAT, null)?.toDoubleOrNull() ?: return
+            val lon = prefs.getString(KEY_LAST_LON, null)?.toDoubleOrNull() ?: return
+            val bearing = prefs.getFloat(KEY_LAST_BEARING, 0f)
+            if (lat != 0.0 || lon != 0.0) {
+                _locationState.value = _locationState.value.copy(
+                    latitude = lat,
+                    longitude = lon,
+                    bearing = bearing
+                )
+            }
+        } catch (_: Exception) {}
+    }
+
     /**
      * Inicia a escuta das atualizações de GPS.
      */
     fun startListening(context: Context) {
+        appContext = context.applicationContext
+        restoreLastLocationFromPrefs(context)
         if (isListening) return
 
         if (!checkPermission(context)) {

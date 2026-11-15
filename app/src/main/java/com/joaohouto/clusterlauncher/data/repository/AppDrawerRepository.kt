@@ -2,6 +2,7 @@ package com.joaohouto.clusterlauncher.data.repository
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
@@ -38,7 +39,6 @@ class AppDrawerRepository(private val context: Context) {
             .map { it.activityInfo.packageName }
             .toSet()
 
-        // If packages haven't changed and we already have cached apps, return instantly without disk reads
         if (!forceReload && cachedApps != null && cachedPackageSignatures == currentPackages) {
             return@withContext cachedApps!!
         }
@@ -48,10 +48,14 @@ class AppDrawerRepository(private val context: Context) {
             .map { resolveInfo ->
                 val pkgName = resolveInfo.activityInfo.packageName
                 val label = resolveInfo.loadLabel(pm).toString()
+                val appFlags = resolveInfo.activityInfo.applicationInfo.flags
+                val isPureSystem = (appFlags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
+                    (appFlags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
+
                 val cachedIcon = iconCache.get(pkgName)
                 val icon = cachedIcon ?: try {
                     val drawable = resolveInfo.loadIcon(pm)
-                    val bmp = drawableToRgb565Bitmap(drawable)
+                    val bmp = drawableToBitmap(drawable)
                     if (bmp != null) {
                         iconCache.put(pkgName, bmp)
                     }
@@ -62,7 +66,8 @@ class AppDrawerRepository(private val context: Context) {
                 AppItem(
                     packageName = pkgName,
                     label = label,
-                    icon = icon
+                    icon = icon,
+                    isSystemApp = isPureSystem
                 )
             }
             .sortedBy { it.label.lowercase() }
@@ -72,11 +77,11 @@ class AppDrawerRepository(private val context: Context) {
         apps
     }
 
-    private fun drawableToRgb565Bitmap(drawable: Drawable): Bitmap? {
+    private fun drawableToBitmap(drawable: Drawable): Bitmap? {
         return try {
             val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth.coerceIn(96, 192) else 144
             val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight.coerceIn(96, 192) else 144
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             drawable.setBounds(0, 0, canvas.width, canvas.height)
             drawable.draw(canvas)

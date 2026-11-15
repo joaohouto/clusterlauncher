@@ -171,8 +171,8 @@ object MapLibreMapHelper {
             style.addImage(VEHICLE_ICON_ID, bitmap)
             styleAccentCache[style.hashCode()] = primaryColor
 
-            val lat = if (location.latitude != 0.0) location.latitude else -23.5505
-            val lon = if (location.longitude != 0.0) location.longitude else -46.6333
+            val lat = MapProjectionHelper.resolveValidLat(location)
+            val lon = MapProjectionHelper.resolveValidLon(location)
             val hasValidLocation = (location.latitude != 0.0 || location.longitude != 0.0)
 
             if (style.getSource(VEHICLE_SOURCE_ID) == null) {
@@ -239,8 +239,8 @@ object MapLibreMapHelper {
             style.addImage(VEHICLE_ICON_ID, bitmap)
         }
 
-        val targetLat = if (location.latitude != 0.0) location.latitude else -23.5505
-        val targetLon = if (location.longitude != 0.0) location.longitude else -46.6333
+        val targetLat = MapProjectionHelper.resolveValidLat(location)
+        val targetLon = MapProjectionHelper.resolveValidLon(location)
         val hasValidLocation = (location.latitude != 0.0 || location.longitude != 0.0)
 
         val source = style.getSourceAs<GeoJsonSource>(VEHICLE_SOURCE_ID)
@@ -298,14 +298,12 @@ object MapLibreMapHelper {
         LocalMBTilesServer.start()
 
         val mapOptions = MapLibreMapOptions.createFromAttributes(context)
-            .foregroundLoadColor(Color.parseColor("#0C0D10"))
             .textureMode(true)
             .translucentTextureSurface(false)
 
         val mapView = MapView(context, mapOptions)
         mapView.tag = MapLibreRenderTracker()
         mapView.setBackgroundColor(Color.parseColor("#0C0D10"))
-        mapView.foreground = ColorDrawable(Color.parseColor("#0C0D10"))
         mapView.onCreate(null)
         mapView.onStart()
         mapView.onResume()

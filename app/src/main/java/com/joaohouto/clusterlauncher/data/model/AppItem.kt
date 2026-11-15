@@ -5,5 +5,6 @@ import android.graphics.Bitmap
 data class AppItem(
     val packageName: String,
     val label: String,
-    val icon: Bitmap? = null
+    val icon: Bitmap? = null,
+    val isSystemApp: Boolean = false
 )

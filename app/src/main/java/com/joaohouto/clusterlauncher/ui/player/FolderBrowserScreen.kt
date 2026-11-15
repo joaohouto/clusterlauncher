@@ -29,11 +29,9 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -47,7 +45,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,11 +70,9 @@ import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
 fun FolderBrowserScreen(
     viewModel: HomeViewModel,
     onNavigateToPlayer: () -> Unit,
-    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val folders by viewModel.folders.collectAsState()
-    val storageFilter by viewModel.storageFilter.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
     val selectedFolderTracks by viewModel.selectedFolderTracks.collectAsState()
     val isScanning by viewModel.isScanning.collectAsState()
@@ -104,12 +99,12 @@ fun FolderBrowserScreen(
                 MetallicButton(
                     onClick = onNavigateToPlayer,
                     icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    text = stringResource(R.string.btn_back_player),
+                    text = stringResource(R.string.btn_back_generic),
                     minSize = 58.dp,
                     iconSize = 26.dp,
                     textSize = 15.sp,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                    contentDescription = stringResource(R.string.btn_back_player)
+                    contentDescription = stringResource(R.string.btn_back_generic)
                 )
 
                 Column {
@@ -144,35 +139,16 @@ fun FolderBrowserScreen(
                 }
             }
 
-            // Storage Filter Pills + Rescan & Settings
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                StorageFilterBar(
-                    selectedFilter = storageFilter,
-                    onSelectFilter = { viewModel.setStorageFilter(it) }
-                )
-
-                MetallicButton(
-                    onClick = { viewModel.rescan() },
-                    icon = Icons.Rounded.Refresh,
-                    text = stringResource(R.string.btn_refresh),
-                    minSize = 58.dp,
-                    iconSize = 24.dp,
-                    textSize = 14.sp,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                    contentDescription = stringResource(R.string.desc_refresh)
-                )
-
-                MetallicButton(
-                    onClick = onOpenSettings,
-                    icon = Icons.Rounded.Settings,
-                    minSize = 58.dp,
-                    iconSize = 24.dp,
-                    contentDescription = stringResource(R.string.desc_settings)
-                )
-            }
+            MetallicButton(
+                onClick = { viewModel.rescan() },
+                icon = Icons.Rounded.Refresh,
+                text = stringResource(R.string.btn_refresh),
+                minSize = 58.dp,
+                iconSize = 24.dp,
+                textSize = 14.sp,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                contentDescription = stringResource(R.string.desc_refresh)
+            )
         }
 
         // Main Split-View Area
@@ -390,84 +366,6 @@ fun FolderBrowserScreen(
 }
 
 @Composable
-private fun StorageFilterBar(
-    selectedFilter: StorageFilter,
-    onSelectFilter: (StorageFilter) -> Unit
-) {
-    val accent = LocalClusterAccent.current.primary
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(SurfaceCard)
-            .border(1.dp, SurfaceCardBorder, RoundedCornerShape(14.dp))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        StorageFilterPill(
-            label = stringResource(R.string.filter_all_storage),
-            icon = null,
-            selected = selectedFilter == StorageFilter.ALL,
-            accent = accent,
-            onClick = { onSelectFilter(StorageFilter.ALL) }
-        )
-        StorageFilterPill(
-            label = stringResource(R.string.filter_usb_storage),
-            icon = Icons.Rounded.Usb,
-            selected = selectedFilter == StorageFilter.USB,
-            accent = accent,
-            onClick = { onSelectFilter(StorageFilter.USB) }
-        )
-        StorageFilterPill(
-            label = stringResource(R.string.filter_internal_storage),
-            icon = Icons.Rounded.Smartphone,
-            selected = selectedFilter == StorageFilter.INTERNAL,
-            accent = accent,
-            onClick = { onSelectFilter(StorageFilter.INTERNAL) }
-        )
-    }
-}
-
-@Composable
-private fun StorageFilterPill(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector?,
-    selected: Boolean,
-    accent: Color,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) accent.copy(alpha = 0.22f) else Color.Transparent)
-            .border(
-                width = 1.dp,
-                color = if (selected) accent else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (selected) accent else TextSecondary,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-        Text(
-            text = label,
-            color = if (selected) TextPrimary else TextSecondary,
-            fontSize = 13.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-        )
-    }
-}
-
-@Composable
 private fun SplitFolderItem(
     folder: Folder,
     isSelected: Boolean,
@@ -538,25 +436,6 @@ private fun SplitFolderItem(
                 text = stringResource(R.string.tracks_count, folder.trackCount),
                 color = TextSecondary,
                 fontSize = 13.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(accent.copy(alpha = 0.16f))
-                .border(1.dp, accent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                .clickable(onClick = onPlayFolderNow),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.PlayArrow,
-                contentDescription = stringResource(R.string.btn_play_all),
-                tint = accent,
-                modifier = Modifier.size(26.dp)
             )
         }
     }

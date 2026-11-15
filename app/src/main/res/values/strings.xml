@@ -183,4 +183,11 @@
     <string name="update_btn_install_ready">Install %1$s Now</string>
     <string name="update_status_downloading">Downloading %1$s… (%2$d%%)</string>
     <string name="update_badge_available">Update %1$s</string>
+    <string name="btn_back_generic">Back</string>
+    <string name="ui_scale_title">Interface Scale</string>
+    <string name="ui_scale_desc">Adjusts the overall size of texts, icons, and cards on screen</string>
+    <string name="uninstall_app">Uninstall Application</string>
+    <string name="app_info">App Info</string>
+    <string name="drawer_app_options_title">Options: %1$s</string>
+    <string name="drawer_pin_to_dock_subtitle">Pin to Quick Dock slot:</string>
 </resources>

@@ -14,7 +14,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -22,12 +21,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-
-enum class StorageFilter {
-    ALL,
-    USB,
-    INTERNAL
-}
 
 data class BottomBarUiState(
     val currentTrack: Track? = null,
@@ -44,22 +37,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     val isScanning: StateFlow<Boolean> = repository.isScanning
 
-    private val allFolders: StateFlow<List<Folder>> = repository.allFolders.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
-    private val _storageFilter = MutableStateFlow(StorageFilter.ALL)
-    val storageFilter: StateFlow<StorageFilter> = _storageFilter.asStateFlow()
-
-    val folders: StateFlow<List<Folder>> = combine(allFolders, _storageFilter) { list, filter ->
-        when (filter) {
-            StorageFilter.ALL -> list
-            StorageFilter.USB -> list.filter { it.isUsbOrExternal }
-            StorageFilter.INTERNAL -> list.filter { !it.isUsbOrExternal }
-        }
-    }.stateIn(
+    val folders: StateFlow<List<Folder>> = repository.allFolders.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
@@ -122,10 +100,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         playerController.initialize()
-    }
-
-    fun setStorageFilter(filter: StorageFilter) {
-        _storageFilter.value = filter
     }
 
     fun selectFolder(folder: Folder) {

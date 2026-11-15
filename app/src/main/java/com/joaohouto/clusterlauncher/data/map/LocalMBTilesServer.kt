@@ -40,6 +40,10 @@ object LocalMBTilesServer {
     private var currentFile: File? = null
     @Volatile
     private var appContext: Context? = null
+    @Volatile
+    private var sourceMinZoom: Int = 0
+    @Volatile
+    private var sourceMaxZoom: Int = 14
 
     // Cache LRU em memória para blocos PBF recentes (reduz I/O de disco SQLite em rotações e panning)
     private val tileCache = LruCache<Long, ByteArray>(400)
@@ -57,8 +61,14 @@ object LocalMBTilesServer {
     /**
      * Define o arquivo .mbtiles fonte para o servidor e abre a conexão SQLite em modo somente-leitura.
      */
-    fun setSource(file: File?) {
-        if (currentFile?.absolutePath == file?.absolutePath && activeDatabase?.isOpen == true) return
+    @Synchronized
+    fun setSource(file: File?, minZoom: Int? = null, maxZoom: Int? = null) {
+        if (minZoom != null) sourceMinZoom = minZoom.coerceIn(0, 18)
+        if (maxZoom != null) sourceMaxZoom = maxZoom.coerceIn(sourceMinZoom, 18)
+
+        if (currentFile?.absolutePath == file?.absolutePath && activeDatabase?.isOpen == true) {
+            return
+        }
         currentFile = file
         synchronized(tileCache) {
             tileCache.evictAll()
@@ -68,11 +78,28 @@ object LocalMBTilesServer {
         } catch (_: Exception) {}
         activeDatabase = if (file != null && file.exists()) {
             try {
-                SQLiteDatabase.openDatabase(
+                val db = SQLiteDatabase.openDatabase(
                     file.absolutePath,
                     null,
                     SQLiteDatabase.OPEN_READONLY or SQLiteDatabase.NO_LOCALIZED_COLLATORS
                 )
+                if (minZoom == null || maxZoom == null) {
+                    var parsedMin = 0
+                    var parsedMax = 14
+                    try {
+                        val cursor = db.rawQuery("SELECT name, value FROM metadata WHERE LOWER(name) IN ('minzoom', 'maxzoom')", null)
+                        while (cursor.moveToNext()) {
+                            val k = cursor.getString(0)?.lowercase()
+                            val v = cursor.getString(1)?.toIntOrNull()
+                            if (k == "minzoom" && v != null) parsedMin = v
+                            if (k == "maxzoom" && v != null) parsedMax = v
+                        }
+                        cursor.close()
+                    } catch (_: Exception) {}
+                    sourceMinZoom = parsedMin.coerceIn(0, 18)
+                    sourceMaxZoom = parsedMax.coerceIn(sourceMinZoom, 18)
+                }
+                db
             } catch (e: Exception) {
                 Log.e(TAG, "Falha ao abrir SQLite para LocalMBTilesServer: ${file.absolutePath}", e)
                 null
@@ -134,9 +161,16 @@ object LocalMBTilesServer {
 
     private fun handleClient(client: Socket) {
         try {
-            client.soTimeout = 4000
+            client.soTimeout = 5000
+            client.tcpNoDelay = true
             val reader = BufferedReader(InputStreamReader(client.getInputStream()))
             val firstLine = reader.readLine() ?: return
+            // Drena todos os cabeçalhos HTTP enviados pelo MapLibre antes de escrever a resposta,
+            // evitando que o kernel Linux envie TCP RST ao fechar o socket com dados não lidos no buffer.
+            while (true) {
+                val headerLine = reader.readLine()
+                if (headerLine.isNullOrEmpty()) break
+            }
             val parts = firstLine.split(" ")
             if (parts.size < 2 || parts[0] != "GET") {
                 client.close()
@@ -289,8 +323,8 @@ object LocalMBTilesServer {
               "tiles": [
                 "http://127.0.0.1:$serverPort/tiles/{z}/{x}/{y}.pbf"
               ],
-              "minzoom": 0,
-              "maxzoom": 14
+              "minzoom": $sourceMinZoom,
+              "maxzoom": $sourceMaxZoom
             }
           },
           "layers": [

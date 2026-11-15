@@ -94,8 +94,8 @@ import kotlin.math.roundToInt
 fun FullScreenMapModal(
     isDarkMode: Boolean = false,
     initialDarkMode: Boolean = isDarkMode,
-    followHeading: Boolean = false,
-    is3dPerspective: Boolean = false,
+    followHeading: Boolean = true,
+    is3dPerspective: Boolean = true,
     fullScreenMode: Boolean = false,
     onToggleDarkMode: ((Boolean) -> Unit)? = null,
     onDismiss: () -> Unit
@@ -123,6 +123,7 @@ fun FullScreenMapModal(
             val darkColor = accentTheme.dark.toArgb()
 
             if (mapState.isMapLoaded && activeFile != null && activeFile.exists()) {
+                androidx.compose.runtime.key(activeFile.absolutePath, activeFile.lastModified(), mapState.isVectorMap) {
                 if (mapState.isVectorMap) {
                     val modalPitch = if (is3dPerspective) MapLibreMapHelper.PITCH_3D_DEGREES else MapLibreMapHelper.PITCH_2D_DEGREES
                     // Mapa Vetorial PBF via MapLibre Native
@@ -294,6 +295,7 @@ fun FullScreenMapModal(
                             osmdroidMapView = null
                         }
                     }
+                }
                 }
             } else {
                 val accent = accentTheme.primary

@@ -29,15 +29,22 @@ data class PreloadedTrackMetadata(
 
 object AudioArtExtractor {
     private const val TAG = "AudioArtExtractor"
-    const val DISPLAY_ART_SIZE_PX = 256
+    const val DISPLAY_ART_SIZE_PX = 1024
 
-    private val bitmapCache = object : LruCache<String, Bitmap>(4 * 1024 * 1024) {
+    private val FOLDER_COVER_NAMES = listOf(
+        "cover.jpg", "cover.jpeg", "cover.png",
+        "folder.jpg", "folder.jpeg", "folder.png",
+        "album.jpg", "album.jpeg", "album.png",
+        "front.jpg", "front.jpeg", "front.png"
+    )
+
+    private val bitmapCache = object : LruCache<String, Bitmap>(24 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
     }
 
     private val metadataCache = LruCache<String, PreloadedTrackMetadata>(64)
 
-    private val artCache = object : LruCache<String, ByteArray>(4 * 1024 * 1024) {
+    private val artCache = object : LruCache<String, ByteArray>(16 * 1024 * 1024) {
         override fun sizeOf(key: String, value: ByteArray): Int = value.size
     }
 
@@ -85,7 +92,7 @@ object AudioArtExtractor {
 
             val decodeOpts = BitmapFactory.Options().apply {
                 this.inSampleSize = inSampleSize
-                inPreferredConfig = Bitmap.Config.RGB_565
+                inPreferredConfig = Bitmap.Config.ARGB_8888
             }
             val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts) ?: return null
             val maxDim = max(decoded.width, decoded.height)
@@ -124,7 +131,7 @@ object AudioArtExtractor {
             bitmapCache.put(uriOrPath, bmp)
         }
         if (BuildConfig.DEBUG) {
-            Log.d(TAG, "[SYNC_DIAG] Preloaded resized art (${bmp.width}x${bmp.height}) ts=${SystemClock.elapsedRealtime()} key=$uriOrPath")
+            Log.d(TAG, "[SYNC_DIAG] Preloaded high-res art (${bmp.width}x${bmp.height}) ts=${SystemClock.elapsedRealtime()} key=$uriOrPath")
         }
         bmp
     }
@@ -148,16 +155,36 @@ object AudioArtExtractor {
                 }
             }
             picture = retriever.embeddedPicture
-            if (picture != null) {
-                synchronized(artCache) {
-                    artCache.put(uriOrPath, picture)
-                }
-            }
         } catch (_: Exception) {
         } finally {
             try {
                 retriever.release()
             } catch (_: Exception) {}
+        }
+
+        // Fallback para arquivo de capa na pasta (cover.jpg, folder.jpg, etc.)
+        if (picture == null && !uriOrPath.startsWith("content://")) {
+            try {
+                val parentDir = File(uriOrPath).parentFile
+                if (parentDir != null && parentDir.exists() && parentDir.isDirectory) {
+                    val dirFiles = parentDir.listFiles()
+                    if (dirFiles != null) {
+                        val coverFile = dirFiles.firstOrNull { f ->
+                            f.isFile && f.length() in 1024..(12 * 1024 * 1024) &&
+                                f.name.lowercase() in FOLDER_COVER_NAMES
+                        }
+                        if (coverFile != null) {
+                            picture = coverFile.readBytes()
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (picture != null) {
+            synchronized(artCache) {
+                artCache.put(uriOrPath, picture)
+            }
         }
         return picture
     }

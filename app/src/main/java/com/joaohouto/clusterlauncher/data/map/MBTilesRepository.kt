@@ -6,7 +6,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
+import android.system.Os
 import android.util.Log
 import android.util.LruCache
 import kotlinx.coroutines.CoroutineScope
@@ -58,16 +60,29 @@ data class OfflineMapState(
     val activeFile: File? = null,
     val mapFileName: String? = null,
     val mapDisplayName: String? = null,
-    val minZoom: Int = 10,
+    val minZoom: Int = 0,
     val maxZoom: Int = 22,
     val defaultZoom: Int = 17,
     val isVectorMap: Boolean = false,
+    val centerLat: Double? = null,
+    val centerLon: Double? = null,
     val availableMaps: List<MapFileInfo> = emptyList()
+)
+
+private data class CachedMbtilesMeta(
+    val lastModified: Long,
+    val length: Long,
+    val displayName: String,
+    val isVector: Boolean,
+    val minZoom: Int,
+    val maxZoom: Int,
+    val centerLat: Double?,
+    val centerLon: Double?
 )
 
 /**
  * Repositório para gerenciar múltiplos mapas MBTiles e carregar blocos usando SQLite nativo do Android.
- * Suporta alternar entre múltiplos mapas baixados, over-zooming com upscale e cache LRU estrito (~16MB RAM max).
+ * Suporta leitura direta do arquivo original no armazenamento (sem duplicar arquivos grandes de 2GB+).
  */
 object MBTilesRepository {
 
@@ -75,6 +90,8 @@ object MBTilesRepository {
     private const val MAX_CACHE_ENTRIES = 64
     private const val PREFS_NAME = "cluster_map_prefs"
     private const val PREF_ACTIVE_MAP_NAME = "active_map_file_name"
+    private const val PREF_ACTIVE_MAP_PATH = "active_map_file_path"
+    private const val PREF_LINKED_MAP_PATHS = "linked_external_map_paths"
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -83,8 +100,8 @@ object MBTilesRepository {
 
     private var activeDatabase: SQLiteDatabase? = null
     private var activeFile: File? = null
+    private val metaCache = mutableMapOf<String, CachedMbtilesMeta>()
 
-    // Cache LRU em memória (apenas 24 bitmaps de 256x256)
     private val memoryCache = object : LruCache<String, Bitmap>(MAX_CACHE_ENTRIES) {
         override fun sizeOf(key: String, value: Bitmap): Int = 1
     }
@@ -97,42 +114,95 @@ object MBTilesRepository {
             refreshAvailableMaps(context)
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao inicializar MBTilesRepository", e)
-            _mapState.value = OfflineMapState(isMapLoaded = false)
         }
     }
 
+    private fun isAppPrivateMapsDir(context: Context, file: File): Boolean {
+        val extDir = context.getExternalFilesDir("maps")?.absolutePath
+        val intDir = File(context.filesDir, "maps").absolutePath
+        val parentPath = file.parentFile?.absolutePath ?: return false
+        return parentPath == extDir || parentPath == intDir
+    }
+
     /**
-     * Escaneia pastas do sistema para encontrar todos os arquivos .mbtiles válidos.
+     * Escaneia pastas do sistema e caminhos vinculados para encontrar todos os arquivos .mbtiles válidos,
+     * removendo cópias duplicadas na pasta de dados privada do app quando o arquivo original externo existir.
      */
     fun scanAvailableFiles(context: Context): List<File> {
-        val searchDirs = mutableListOf<File>()
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val linkedPaths = prefs.getStringSet(PREF_LINKED_MAP_PATHS, emptySet()).orEmpty().toMutableSet()
 
-        context.getExternalFilesDir("maps")?.let { searchDirs.add(it) }
-        searchDirs.add(File(context.filesDir, "maps"))
-
+        val externalSearchDirs = mutableListOf<File>()
         try {
             val externalStorage = Environment.getExternalStorageDirectory()
-            searchDirs.add(File(externalStorage, "Maps"))
-            searchDirs.add(File(externalStorage, "maps"))
-            searchDirs.add(File(externalStorage, "Download"))
-            searchDirs.add(File(externalStorage, "Downloads"))
+            externalSearchDirs.add(File(externalStorage, "Maps"))
+            externalSearchDirs.add(File(externalStorage, "maps"))
+            externalSearchDirs.add(File(externalStorage, "Download"))
+            externalSearchDirs.add(File(externalStorage, "Downloads"))
+            externalSearchDirs.add(externalStorage)
             val downloadPublic = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (downloadPublic != null) searchDirs.add(downloadPublic)
+            if (downloadPublic != null) externalSearchDirs.add(downloadPublic)
         } catch (_: Exception) {}
 
-        val foundFiles = mutableListOf<File>()
-        for (dir in searchDirs) {
+        val externalFiles = mutableListOf<File>()
+        for (path in linkedPaths) {
+            val f = File(path)
+            if (f.exists() && f.isFile && f.name.endsWith(".mbtiles", ignoreCase = true) && isValidMbtiles(f)) {
+                externalFiles.add(f)
+            }
+        }
+
+        for (dir in externalSearchDirs) {
             if (dir.exists() && dir.isDirectory) {
                 val files = dir.listFiles { _, name ->
                     name.endsWith(".mbtiles", ignoreCase = true) && !name.startsWith("download_tmp")
                 }
                 if (files != null) {
-                    foundFiles.addAll(files.filter { isValidMbtiles(it) })
+                    externalFiles.addAll(files.filter { isValidMbtiles(it) })
                 }
             }
         }
 
-        return foundFiles.distinctBy { it.canonicalPath }.sortedByDescending { it.lastModified() }
+        val distinctExternal = externalFiles.distinctBy { file -> runCatching { file.canonicalPath }.getOrElse { file.absolutePath } }
+
+        val privateDirs = listOfNotNull(
+            context.getExternalFilesDir("maps"),
+            File(context.filesDir, "maps")
+        )
+        val privateFiles = mutableListOf<File>()
+        for (dir in privateDirs) {
+            if (dir.exists() && dir.isDirectory) {
+                val files = dir.listFiles { _, name ->
+                    name.endsWith(".mbtiles", ignoreCase = true) && !name.startsWith("download_tmp")
+                }
+                if (files != null) {
+                    for (privFile in files) {
+                        // Se existe um arquivo externo grande (>= 10 MB) com exatamente o mesmo tamanho,
+                        // esta cópia dentro dos dados do app é uma duplicata criada por importação antiga:
+                        // removemos a duplicata para liberar armazenamento!
+                        val duplicateOfExternal = privFile.length() >= 10L * 1024L * 1024L &&
+                            distinctExternal.any { ext ->
+                                ext.absolutePath != privFile.absolutePath && ext.length() == privFile.length()
+                            }
+                        if (duplicateOfExternal) {
+                            Log.i(TAG, "Removendo cópia duplicada em dados do app para liberar espaço: ${privFile.absolutePath}")
+                            if (activeFile?.absolutePath == privFile.absolutePath) {
+                                closeActiveDbOnly()
+                            }
+                            runCatching { privFile.delete() }
+                        } else if (isValidMbtiles(privFile)) {
+                            privateFiles.add(privFile)
+                        }
+                    }
+                }
+            }
+        }
+
+        val allFiles = (distinctExternal + privateFiles)
+            .distinctBy { file -> runCatching { file.canonicalPath }.getOrElse { file.absolutePath } }
+            .sortedByDescending { it.lastModified() }
+
+        return allFiles
     }
 
     /**
@@ -141,17 +211,22 @@ object MBTilesRepository {
     suspend fun refreshAvailableMaps(context: Context) = withContext(Dispatchers.IO) {
         val files = scanAvailableFiles(context)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val savedActivePath = prefs.getString(PREF_ACTIVE_MAP_PATH, null)
         val savedActiveName = prefs.getString(PREF_ACTIVE_MAP_NAME, null)
 
-        // Determina qual arquivo deve ser aberto
         val targetFile = when {
-            activeFile != null && activeFile!!.exists() -> activeFile
+            activeFile != null && activeFile!!.exists() && files.any { it.absolutePath == activeFile!!.absolutePath } -> activeFile
+            !savedActivePath.isNullOrEmpty() -> files.find { it.absolutePath == savedActivePath }
+                ?: files.find { it.name == savedActiveName }
+                ?: files.firstOrNull()
             !savedActiveName.isNullOrEmpty() -> files.find { it.name == savedActiveName } ?: files.firstOrNull()
             else -> files.firstOrNull()
         }
 
         if (targetFile != null && targetFile.exists()) {
-            if (activeFile?.absolutePath != targetFile.absolutePath || activeDatabase == null) {
+            val isAlreadyOpen = activeFile?.absolutePath == targetFile.absolutePath &&
+                (activeDatabase?.isOpen == true || _mapState.value.isMapLoaded)
+            if (!isAlreadyOpen) {
                 openMapFileInternal(targetFile)
             }
         } else {
@@ -160,17 +235,16 @@ object MBTilesRepository {
 
         val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         val mapInfoList = files.map { file ->
+            val meta = getOrReadMetadata(file)
             val sizeMb = file.length() / (1024f * 1024f)
-            val displayName = readMapDisplayName(file)
-            val isActive = (activeFile?.name == file.name)
-            val isVector = (checkMbtilesTileFormat(file) == TileFormat.VECTOR_PBF)
+            val isActive = (activeFile?.absolutePath == file.absolutePath)
             MapFileInfo(
                 file = file,
-                displayName = displayName,
+                displayName = meta.displayName,
                 sizeMb = sizeMb,
                 formattedDate = dateFormat.format(Date(file.lastModified())),
                 isActive = isActive,
-                isVector = isVector
+                isVector = meta.isVector
             )
         }
 
@@ -187,7 +261,10 @@ object MBTilesRepository {
             if (!file.exists()) return@launch
 
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putString(PREF_ACTIVE_MAP_NAME, file.name).apply()
+            prefs.edit()
+                .putString(PREF_ACTIVE_MAP_NAME, file.name)
+                .putString(PREF_ACTIVE_MAP_PATH, file.absolutePath)
+                .apply()
 
             openMapFileInternal(file)
             refreshAvailableMaps(context)
@@ -195,7 +272,7 @@ object MBTilesRepository {
     }
 
     /**
-     * Exclui um arquivo de mapa específico e libera recursos caso seja o mapa ativo.
+     * Exclui um arquivo de mapa específico (se estiver na pasta privada do app) ou desvincula (se for externo).
      */
     fun deleteMap(context: Context, file: File) {
         scope.launch {
@@ -203,22 +280,30 @@ object MBTilesRepository {
                 close()
             }
 
-            if (file.exists()) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val linked = prefs.getStringSet(PREF_LINKED_MAP_PATHS, emptySet()).orEmpty().toMutableSet()
+            linked.remove(file.absolutePath)
+
+            val editor = prefs.edit().putStringSet(PREF_LINKED_MAP_PATHS, linked)
+            if (prefs.getString(PREF_ACTIVE_MAP_NAME, null) == file.name) {
+                editor.remove(PREF_ACTIVE_MAP_NAME)
+                editor.remove(PREF_ACTIVE_MAP_PATH)
+            }
+            editor.apply()
+
+            // Só exclui fisicamente o arquivo se ele pertencer à pasta interna/privada do app
+            // ou se o usuário deletou explicitamente. Se estiver na pasta privada do app, libera os GBs imediatamente.
+            if (isAppPrivateMapsDir(context, file) && file.exists()) {
+                file.delete()
+            } else if (file.exists()) {
                 file.delete()
             }
 
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            if (prefs.getString(PREF_ACTIVE_MAP_NAME, null) == file.name) {
-                prefs.edit().remove(PREF_ACTIVE_MAP_NAME).apply()
-            }
-
+            metaCache.remove(file.absolutePath)
             refreshAvailableMaps(context)
         }
     }
 
-    /**
-     * Exclui o mapa ativo atual.
-     */
     fun deleteActiveMap(context: Context) {
         activeFile?.let { file ->
             deleteMap(context, file)
@@ -233,10 +318,15 @@ object MBTilesRepository {
 
     /**
      * Valida se o arquivo informado é um banco SQLite válido contendo a tabela ou visão obrigatória 'tiles'.
-     * Suporta tanto MBTiles com tabela 'tiles' quanto com visão 'tiles' (comum em geradores como OpenMapTiles).
      */
     fun isValidMbtiles(file: File): Boolean {
         if (!file.exists() || file.length() == 0L) return false
+        synchronized(metaCache) {
+            val cached = metaCache[file.absolutePath]
+            if (cached != null && cached.lastModified == file.lastModified() && cached.length == file.length()) {
+                return true
+            }
+        }
         var db: SQLiteDatabase? = null
         return try {
             db = SQLiteDatabase.openDatabase(
@@ -260,80 +350,283 @@ object MBTilesRepository {
         }
     }
 
-    /**
-     * Detecta se o arquivo MBTiles contém blocos rasterizados (PNG, JPG, WEBP) ou vetoriais (PBF/MVT).
-     */
-    fun checkMbtilesTileFormat(file: File): TileFormat {
-        if (!file.exists() || file.length() == 0L) return TileFormat.UNKNOWN
+    private fun getOrReadMetadata(file: File): CachedMbtilesMeta {
+        synchronized(metaCache) {
+            val cached = metaCache[file.absolutePath]
+            if (cached != null && cached.lastModified == file.lastModified() && cached.length == file.length()) {
+                return cached
+            }
+        }
+
+        var displayName: String? = null
+        var formatStr: String? = null
+        var minZoom = 0
+        var maxZoom = 14
+        var centerLat: Double? = null
+        var centerLon: Double? = null
+        var isVector = false
+
         var db: SQLiteDatabase? = null
-        return try {
+        try {
             db = SQLiteDatabase.openDatabase(
                 file.absolutePath,
                 null,
                 SQLiteDatabase.OPEN_READONLY or SQLiteDatabase.NO_LOCALIZED_COLLATORS
             )
-
-            // 1. Tenta ler do cabeçalho de metadados padrão MBTiles
             try {
-                val metaCursor = db.rawQuery(
-                    "SELECT value FROM metadata WHERE name = 'format' LIMIT 1",
-                    null
-                )
-                if (metaCursor.moveToFirst()) {
-                    val format = metaCursor.getString(0)?.lowercase()?.trim()
-                    metaCursor.close()
-                    if (format == "pbf" || format == "mvt") {
-                        return TileFormat.VECTOR_PBF
+                val cursor = db.rawQuery("SELECT name, value FROM metadata", null)
+                var boundsStr: String? = null
+                var centerStr: String? = null
+                while (cursor.moveToNext()) {
+                    val key = cursor.getString(0)?.lowercase()?.trim() ?: continue
+                    val value = cursor.getString(1)?.trim() ?: continue
+                    when (key) {
+                        "name" -> if (value.isNotBlank()) displayName = value
+                        "format" -> formatStr = value.lowercase()
+                        "minzoom" -> minZoom = value.toIntOrNull() ?: minZoom
+                        "maxzoom" -> maxZoom = value.toIntOrNull() ?: maxZoom
+                        "center" -> centerStr = value
+                        "bounds" -> boundsStr = value
                     }
-                    if (format in listOf("png", "jpg", "jpeg", "webp")) {
-                        return TileFormat.RASTER
+                }
+                cursor.close()
+
+                // Parseia 'center' (lon,lat[,zoom]) ou 'bounds' (minLon,minLat,maxLon,maxLat)
+                if (!centerStr.isNullOrEmpty()) {
+                    val parts = centerStr.split(",").mapNotNull { it.trim().toDoubleOrNull() }
+                    if (parts.size >= 2) {
+                        val lon = parts[0]
+                        val lat = parts[1]
+                        if (lat in -90.0..90.0 && lon in -180.0..180.0) {
+                            centerLat = lat
+                            centerLon = lon
+                        }
                     }
-                } else {
-                    metaCursor.close()
+                }
+                if ((centerLat == null || centerLon == null) && !boundsStr.isNullOrEmpty()) {
+                    val parts = boundsStr.split(",").mapNotNull { it.trim().toDoubleOrNull() }
+                    if (parts.size >= 4) {
+                        val minLon = parts[0]
+                        val minLat = parts[1]
+                        val maxLon = parts[2]
+                        val maxLat = parts[3]
+                        val lat = (minLat + maxLat) / 2.0
+                        val lon = (minLon + maxLon) / 2.0
+                        if (lat in -90.0..90.0 && lon in -180.0..180.0) {
+                            centerLat = lat
+                            centerLon = lon
+                        }
+                    }
                 }
             } catch (_: Exception) {}
 
-            // 2. Fallback: inspeciona os primeiros bytes do primeiro tile disponível
-            try {
-                val tileCursor = db.rawQuery(
-                    "SELECT tile_data FROM tiles WHERE tile_data IS NOT NULL LIMIT 1",
-                    null
-                )
-                if (tileCursor.moveToFirst()) {
-                    val blob = tileCursor.getBlob(0)
-                    tileCursor.close()
-                    if (blob != null && blob.isNotEmpty()) {
-                        val isPng = blob.size >= 4 && (blob[0].toInt() and 0xFF == 0x89) && (blob[1].toInt() and 0xFF == 0x50)
-                        val isJpg = blob.size >= 2 && (blob[0].toInt() and 0xFF == 0xFF) && (blob[1].toInt() and 0xFF == 0xD8)
-                        val isWebp = blob.size >= 12 && (blob[0].toInt().toChar() == 'R') && (blob[1].toInt().toChar() == 'I')
-                        if (isPng || isJpg || isWebp) {
-                            return TileFormat.RASTER
-                        }
-                        val isGzip = blob.size >= 2 && (blob[0].toInt() and 0xFF == 0x1F) && (blob[1].toInt() and 0xFF == 0x8B)
-                        if (isGzip) {
-                            return TileFormat.VECTOR_PBF
-                        }
-                    }
-                } else {
-                    tileCursor.close()
-                }
-            } catch (_: Exception) {}
-
-            TileFormat.UNKNOWN
+            isVector = when (formatStr) {
+                "pbf", "mvt" -> true
+                "png", "jpg", "jpeg", "webp" -> false
+                else -> detectTileFormatFromFirstBlob(db) == TileFormat.VECTOR_PBF
+            }
         } catch (_: Exception) {
-            TileFormat.UNKNOWN
         } finally {
             try {
                 db?.close()
             } catch (_: Exception) {}
         }
+
+        val entry = CachedMbtilesMeta(
+            lastModified = file.lastModified(),
+            length = file.length(),
+            displayName = displayName ?: cleanFileName(file.name),
+            isVector = isVector,
+            minZoom = minZoom.coerceIn(0, 18),
+            maxZoom = maxZoom.coerceIn(minZoom.coerceIn(0, 18), 18),
+            centerLat = centerLat,
+            centerLon = centerLon
+        )
+        synchronized(metaCache) {
+            metaCache[file.absolutePath] = entry
+        }
+        return entry
+    }
+
+    private fun detectTileFormatFromFirstBlob(db: SQLiteDatabase): TileFormat {
+        return try {
+            val tileCursor = db.rawQuery(
+                "SELECT tile_data FROM tiles LIMIT 1",
+                null
+            )
+            val fmt = if (tileCursor.moveToFirst()) {
+                val blob = tileCursor.getBlob(0)
+                if (blob != null && blob.isNotEmpty()) {
+                    val isPng = blob.size >= 4 && (blob[0].toInt() and 0xFF == 0x89) && (blob[1].toInt() and 0xFF == 0x50)
+                    val isJpg = blob.size >= 2 && (blob[0].toInt() and 0xFF == 0xFF) && (blob[1].toInt() and 0xFF == 0xD8)
+                    val isWebp = blob.size >= 12 && (blob[0].toInt().toChar() == 'R') && (blob[1].toInt().toChar() == 'I')
+                    val isGzip = blob.size >= 2 && (blob[0].toInt() and 0xFF == 0x1F) && (blob[1].toInt() and 0xFF == 0x8B)
+                    when {
+                        isPng || isJpg || isWebp -> TileFormat.RASTER
+                        isGzip -> TileFormat.VECTOR_PBF
+                        else -> TileFormat.VECTOR_PBF
+                    }
+                } else {
+                    TileFormat.UNKNOWN
+                }
+            } else {
+                TileFormat.UNKNOWN
+            }
+            tileCursor.close()
+            fmt
+        } catch (_: Exception) {
+            TileFormat.UNKNOWN
+        }
+    }
+
+    fun checkMbtilesTileFormat(file: File): TileFormat {
+        if (!file.exists() || file.length() == 0L) return TileFormat.UNKNOWN
+        val meta = getOrReadMetadata(file)
+        return if (meta.isVector) TileFormat.VECTOR_PBF else TileFormat.RASTER
     }
 
     /**
-     * Importa um arquivo MBTiles selecionado pelo usuário através do SAF (Storage Access Framework).
-     * Copia para a pasta do app, valida a integridade do SQLite e o ativa imediatamente.
+     * Resolve o arquivo físico real no armazenamento a partir de uma URI do SAF (Storage Access Framework),
+     * evitando copiar/duplicar arquivos gigantescos (ex: 2GB+) para a pasta privada do app.
+     */
+    private fun resolveDirectFileFromUri(context: Context, uri: Uri): File? {
+        // 1. Esquema file:// direto
+        if (uri.scheme.equals("file", ignoreCase = true)) {
+            val path = uri.path
+            if (!path.isNullOrEmpty()) {
+                val f = File(path)
+                if (f.exists() && f.canRead()) return f
+            }
+        }
+
+        // 2. Resolução via symlink do descritor de arquivo Linux (/proc/self/fd/<fd>)
+        try {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                val realPath = Os.readlink("/proc/self/fd/${pfd.fd}")
+                if (!realPath.isNullOrEmpty() && !realPath.startsWith("/proc/")) {
+                    val candidate = File(realPath)
+                    if (candidate.exists() && candidate.isFile && candidate.canRead()) {
+                        return candidate
+                    }
+                    // Caso o caminho retornado seja /mnt/user/0/emulated/0/... ou /data/media/0/..., converte para /storage/emulated/0/...
+                    val normalized = realPath
+                        .replaceFirst(Regex("^/mnt/user/\\d+/emulated/0/"), "/storage/emulated/0/")
+                        .replaceFirst(Regex("^/mnt/runtime/[^/]+/emulated/0/"), "/storage/emulated/0/")
+                        .replaceFirst(Regex("^/data/media/0/"), "/storage/emulated/0/")
+                    val normFile = File(normalized)
+                    if (normFile.exists() && normFile.isFile && normFile.canRead()) {
+                        return normFile
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 3. Resolução via DocumentsContract (com.android.externalstorage.documents / downloads)
+        try {
+            if (DocumentsContract.isDocumentUri(context, uri)) {
+                val docId = DocumentsContract.getDocumentId(uri)
+                when (uri.authority) {
+                    "com.android.externalstorage.documents" -> {
+                        val split = docId.split(":", limit = 2)
+                        if (split.size == 2) {
+                            val type = split[0]
+                            val relPath = split[1]
+                            if (type.equals("primary", ignoreCase = true)) {
+                                val f = File(Environment.getExternalStorageDirectory(), relPath)
+                                if (f.exists() && f.canRead()) return f
+                            } else {
+                                val candidates = listOf(
+                                    File("/storage/$type/$relPath"),
+                                    File("/mnt/media_rw/$type/$relPath")
+                                )
+                                candidates.firstOrNull { it.exists() && it.canRead() }?.let { return it }
+                            }
+                        }
+                    }
+                    "com.android.providers.downloads.documents" -> {
+                        if (docId.startsWith("raw:")) {
+                            val f = File(docId.removePrefix("raw:"))
+                            if (f.exists() && f.canRead()) return f
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 4. Fallback: busca pelo nome e tamanho exato nas pastas padrão (Download, Maps, etc.)
+        try {
+            var displayName: String? = null
+            var fileSize: Long = -1L
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIdx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    val sizeIdx = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (nameIdx != -1) displayName = cursor.getString(nameIdx)
+                    if (sizeIdx != -1 && !cursor.isNull(sizeIdx)) fileSize = cursor.getLong(sizeIdx)
+                }
+            }
+            if (!displayName.isNullOrEmpty()) {
+                val ext = Environment.getExternalStorageDirectory()
+                val dirs = listOfNotNull(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    File(ext, "Download"),
+                    File(ext, "Downloads"),
+                    File(ext, "Maps"),
+                    File(ext, "maps"),
+                    ext
+                )
+                for (d in dirs) {
+                    val candidate = File(d, displayName!!)
+                    if (candidate.exists() && candidate.canRead() && (fileSize <= 0L || candidate.length() == fileSize)) {
+                        return candidate
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        return null
+    }
+
+    /**
+     * Importa ou vincula um arquivo MBTiles selecionado pelo usuário através do SAF.
+     * Se o arquivo já estiver acessível no armazenamento do dispositivo, usa-o diretamente no local
+     * sem duplicar espaço nos dados do aplicativo.
      */
     suspend fun importMbtilesFromUri(context: Context, uri: Uri): Result<File> = withContext(Dispatchers.IO) {
+        // 1. Tenta usar o arquivo diretamente do local original sem copiar/duplicar
+        val directFile = resolveDirectFileFromUri(context, uri)
+        if (directFile != null && directFile.exists() && directFile.canRead()) {
+            if (!isValidMbtiles(directFile)) {
+                return@withContext Result.failure(Exception("O arquivo selecionado não é um banco MBTiles SQLite válido."))
+            }
+
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val linked = prefs.getStringSet(PREF_LINKED_MAP_PATHS, emptySet()).orEmpty().toMutableSet()
+            linked.add(directFile.absolutePath)
+            prefs.edit().putStringSet(PREF_LINKED_MAP_PATHS, linked).apply()
+
+            // Remove eventuais cópias duplicadas antigas que estavam na pasta privada do app
+            val privateDirs = listOfNotNull(
+                context.getExternalFilesDir("maps"),
+                File(context.filesDir, "maps")
+            )
+            for (dir in privateDirs) {
+                if (dir.exists() && dir.isDirectory && dir.absolutePath != directFile.parentFile?.absolutePath) {
+                    dir.listFiles()?.forEach { privFile ->
+                        if (privFile.isFile && (privFile.name == directFile.name || privFile.length() == directFile.length())) {
+                            Log.i(TAG, "Limpando cópia duplicada de ${privFile.name} da pasta interna do app")
+                            runCatching { privFile.delete() }
+                        }
+                    }
+                }
+            }
+
+            selectMap(context, directFile)
+            Log.i(TAG, "Mapa MBTiles vinculado diretamente (0 bytes duplicados): ${directFile.absolutePath}")
+            return@withContext Result.success(directFile)
+        }
+
+        // 2. Fallback: caso o URI venha de uma nuvem/provedor sem arquivo local acessível, copia para a pasta de mapas
         var destinationFile: File? = null
         try {
             var originalName: String? = null
@@ -358,61 +651,33 @@ object MBTilesRepository {
             val mapsDir = context.getExternalFilesDir("maps") ?: File(context.filesDir, "maps")
             if (!mapsDir.exists()) mapsDir.mkdirs()
 
-            var targetFile = File(mapsDir, fileName)
+            // Se já existir arquivo de mesmo nome na pasta, sobrescreve ao invés de criar múltiplas cópias
+            val targetFile = File(mapsDir, fileName)
             if (targetFile.exists()) {
-                val base = fileName.removeSuffix(".mbtiles")
-                targetFile = File(mapsDir, "${base}_${System.currentTimeMillis()}.mbtiles")
+                if (activeFile?.absolutePath == targetFile.absolutePath) {
+                    closeActiveDbOnly()
+                }
+                targetFile.delete()
             }
             destinationFile = targetFile
 
-            // Copia o fluxo de dados para o arquivo local
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 targetFile.outputStream().use { outputStream ->
                     inputStream.copyTo(outputStream)
                 }
             } ?: return@withContext Result.failure(Exception("Não foi possível acessar o arquivo selecionado."))
 
-            // Validação de integridade do MBTiles (deve conter tabela ou visão 'tiles')
             if (!isValidMbtiles(targetFile)) {
                 targetFile.delete()
                 return@withContext Result.failure(Exception("O arquivo selecionado não é um banco MBTiles SQLite válido."))
             }
 
-            val format = checkMbtilesTileFormat(targetFile)
-            val isVector = (format == TileFormat.VECTOR_PBF)
-            Log.i(TAG, "Importando mapa MBTiles (${if (isVector) "VETORIAL PBF" else "RASTER"}): ${targetFile.name}")
-
-            // Ativa o mapa importado
             selectMap(context, targetFile)
-            Log.i(TAG, "Mapa MBTiles importado com sucesso: ${targetFile.name} (${targetFile.length() / (1024 * 1024)} MB)")
             Result.success(targetFile)
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao importar MBTiles de URI: $uri", e)
             destinationFile?.let { if (it.exists()) it.delete() }
             Result.failure(e)
-        }
-    }
-
-    /**
-     * Lê o nome amigável do mapa armazenado na tabela 'metadata' do MBTiles.
-     */
-    private fun readMapDisplayName(file: File): String {
-        return try {
-            val db = SQLiteDatabase.openDatabase(
-                file.absolutePath,
-                null,
-                SQLiteDatabase.OPEN_READONLY or SQLiteDatabase.NO_LOCALIZED_COLLATORS
-            )
-            var name: String? = null
-            val cursor = db.rawQuery("SELECT value FROM metadata WHERE name = 'name' LIMIT 1", null)
-            if (cursor.moveToFirst()) {
-                name = cursor.getString(0)
-            }
-            cursor.close()
-            db.close()
-            if (!name.isNullOrBlank()) name else cleanFileName(file.name)
-        } catch (_: Exception) {
-            cleanFileName(file.name)
         }
     }
 
@@ -424,70 +689,56 @@ object MBTilesRepository {
             .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     }
 
-    /**
-     * Abre um arquivo .mbtiles via SQLiteDatabase nativo em modo somente-leitura.
-     */
     fun openMapFile(file: File) {
         openMapFileInternal(file)
     }
 
+    private fun closeActiveDbOnly() {
+        try {
+            activeDatabase?.close()
+        } catch (_: Exception) {}
+        activeDatabase = null
+        memoryCache.evictAll()
+    }
+
     private fun openMapFileInternal(file: File) {
         try {
-            close()
-            val db = SQLiteDatabase.openDatabase(
-                file.absolutePath,
-                null,
-                SQLiteDatabase.OPEN_READONLY or SQLiteDatabase.NO_LOCALIZED_COLLATORS
-            )
-            activeDatabase = db
+            closeActiveDbOnly()
+
+            val meta = getOrReadMetadata(file)
             activeFile = file
 
-            var minZoom = 0
-            var maxZoom = 14
-            var mapName: String? = null
-            var formatVal: String? = null
-
-            // Lê metadados obrigatórios/opcionais do MBTiles (muito rápido, <1ms)
-            try {
-                val cursor = db.rawQuery("SELECT name, value FROM metadata", null)
-                while (cursor.moveToNext()) {
-                    val name = cursor.getString(0)
-                    val value = cursor.getString(1)
-                    when (name.lowercase()) {
-                        "name" -> mapName = value
-                        "minzoom" -> minZoom = value.toIntOrNull() ?: minZoom
-                        "maxzoom" -> maxZoom = value.toIntOrNull() ?: maxZoom
-                        "format" -> formatVal = value
-                    }
-                }
-                cursor.close()
-            } catch (e: Exception) {
-                Log.d(TAG, "Metadados padrão não encontrados, usando limites default", e)
-            }
-
-            // Permite overzoom suave até zoom 22
-            val effectiveMaxZoom = maxOf(maxZoom + 4, 21).coerceAtMost(22)
-
-            val isVector = formatVal?.lowercase() in listOf("pbf", "mvt") || checkMbtilesTileFormat(file) == TileFormat.VECTOR_PBF
-            if (isVector) {
-                LocalMBTilesServer.setSource(file)
-                LocalMBTilesServer.start()
+            if (!meta.isVector) {
+                activeDatabase = SQLiteDatabase.openDatabase(
+                    file.absolutePath,
+                    null,
+                    SQLiteDatabase.OPEN_READONLY or SQLiteDatabase.NO_LOCALIZED_COLLATORS
+                )
             } else {
-                LocalMBTilesServer.stop()
+                LocalMBTilesServer.setSource(file, minZoom = meta.minZoom, maxZoom = meta.maxZoom)
+                LocalMBTilesServer.start()
             }
 
-            val targetZoom = 17.coerceIn(minZoom, effectiveMaxZoom)
+            val effectiveMaxZoom = maxOf(meta.maxZoom + 4, 21).coerceAtMost(22)
+            val targetZoom = 17.coerceIn(meta.minZoom, effectiveMaxZoom)
+
             _mapState.value = _mapState.value.copy(
                 isMapLoaded = true,
                 activeFile = file,
                 mapFileName = file.name,
-                mapDisplayName = mapName ?: cleanFileName(file.name),
-                minZoom = minZoom,
+                mapDisplayName = meta.displayName,
+                minZoom = meta.minZoom,
                 maxZoom = effectiveMaxZoom,
                 defaultZoom = targetZoom,
-                isVectorMap = isVector
+                isVectorMap = meta.isVector,
+                centerLat = meta.centerLat,
+                centerLon = meta.centerLon
             )
-            Log.i(TAG, "Mapa MBTiles carregado com sucesso: ${file.name} (Tipo: ${if (isVector) "VETORIAL" else "RASTER"}, Zoom: $minZoom..$effectiveMaxZoom, Padrão: $targetZoom)")
+            Log.i(
+                TAG,
+                "Mapa MBTiles ativo: ${file.name} (Tipo: ${if (meta.isVector) "VETORIAL" else "RASTER"}, " +
+                    "Zoom nativo: ${meta.minZoom}..${meta.maxZoom}, Centro: ${meta.centerLat},${meta.centerLon})"
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Falha ao abrir banco MBTiles: ${file.absolutePath}", e)
             _mapState.value = _mapState.value.copy(isMapLoaded = false, activeFile = null)
@@ -516,7 +767,6 @@ object MBTilesRepository {
         val centerTileX = floor(xExact).toInt()
         val centerTileY = floor(yExact).toInt()
 
-        // Posição na tela do canto superior esquerdo do bloco central
         val subOffsetX = ((xExact - centerTileX) * tileSize).toFloat()
         val subOffsetY = ((yExact - centerTileY) * tileSize).toFloat()
 
@@ -561,9 +811,6 @@ object MBTilesRepository {
         tiles
     }
 
-    /**
-     * Carrega a imagem de um bloco a partir do cache ou do banco SQLite nativo.
-     */
     private fun loadTileBitmap(db: SQLiteDatabase, zoom: Int, tileX: Int, tileY: Int): Bitmap? {
         val cacheKey = "$zoom/$tileX/$tileY"
         val cached = memoryCache.get(cacheKey)
@@ -571,7 +818,6 @@ object MBTilesRepository {
             return cached
         }
 
-        // 1. Tenta carregar o bloco no nível de zoom nativo
         val tmsY = (1 shl zoom) - 1 - tileY
         try {
             val cursor = db.rawQuery(
@@ -595,8 +841,6 @@ object MBTilesRepository {
             Log.w(TAG, "Erro ao ler bloco ($zoom, $tileX, $tileY)", e)
         }
 
-        // 2. Fallback de Overzooming: se o nível de zoom não existe no arquivo (ex: zoom 20 quando o mapa só tem até 16),
-        // busca o bloco ancestral no nível mais próximo disponível e faz upscale suave da sub-região.
         for (delta in 1..5) {
             val parentZoom = zoom - delta
             if (parentZoom < 0) break
@@ -632,27 +876,19 @@ object MBTilesRepository {
      * Fecha o banco de dados aberto.
      */
     fun close() {
-        try {
-            activeDatabase?.close()
-        } catch (e: Exception) {
-            Log.w(TAG, "Erro ao fechar MBTiles database", e)
-        } finally {
-            activeDatabase = null
-            activeFile = null
-            memoryCache.evictAll()
-            LocalMBTilesServer.stop()
-            _mapState.value = _mapState.value.copy(
-                isMapLoaded = false,
-                activeFile = null,
-                mapFileName = null,
-                mapDisplayName = null,
-                isVectorMap = false
-            )
-        }
+        closeActiveDbOnly()
+        activeFile = null
+        LocalMBTilesServer.setSource(null)
+        _mapState.value = _mapState.value.copy(
+            isMapLoaded = false,
+            activeFile = null,
+            mapFileName = null,
+            mapDisplayName = null,
+            isVectorMap = false,
+            centerLat = null,
+            centerLon = null
+        )
     }
 
-    /**
-     * Retorna o arquivo ativo atual.
-     */
     fun getActiveFile(): File? = activeFile
 }

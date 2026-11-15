@@ -80,8 +80,8 @@ fun OfflineMapCard(
     modifier: Modifier = Modifier,
     heightDp: Int? = null,
     isDarkMode: Boolean = false,
-    followHeading: Boolean = false,
-    is3dPerspective: Boolean = false,
+    followHeading: Boolean = true,
+    is3dPerspective: Boolean = true,
     isMapPaused: Boolean = false,
     onMapClick: (() -> Unit)? = null
 ) {
@@ -149,23 +149,25 @@ fun OfflineMapCard(
                 ) {
                     val activeFile = mapState.activeFile
                     if (mapState.isMapLoaded && activeFile != null && activeFile.exists()) {
-                        if (mapState.isVectorMap) {
-                            MapLibreCardMapView(
-                                location = locationState,
-                                activeFile = activeFile,
-                                followHeading = followHeading,
-                                is3dPerspective = is3dPerspective,
-                                isMapPaused = isMapPaused
-                            )
-                        } else {
-                            OsmCardMapView(
-                                location = locationState,
-                                activeFile = activeFile,
-                                isDarkMode = isDarkMode,
-                                followHeading = followHeading,
-                                is3dPerspective = is3dPerspective,
-                                isMapPaused = isMapPaused
-                            )
+                        androidx.compose.runtime.key(activeFile.absolutePath, activeFile.lastModified(), mapState.isVectorMap) {
+                            if (mapState.isVectorMap) {
+                                MapLibreCardMapView(
+                                    location = locationState,
+                                    activeFile = activeFile,
+                                    followHeading = followHeading,
+                                    is3dPerspective = is3dPerspective,
+                                    isMapPaused = isMapPaused
+                                )
+                            } else {
+                                OsmCardMapView(
+                                    location = locationState,
+                                    activeFile = activeFile,
+                                    isDarkMode = isDarkMode,
+                                    followHeading = followHeading,
+                                    is3dPerspective = is3dPerspective,
+                                    isMapPaused = isMapPaused
+                                )
+                            }
                         }
                     } else {
                         RadarFallbackView(

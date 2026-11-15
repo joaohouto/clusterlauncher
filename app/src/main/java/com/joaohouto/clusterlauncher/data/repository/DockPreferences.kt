@@ -97,7 +97,7 @@ class DockPreferences(private val context: Context) {
 
     fun getMapFollowHeadingFlow(): Flow<Boolean> {
         return context.dataStore.data.map { preferences ->
-            preferences[MAP_FOLLOW_HEADING_KEY] ?: false
+            preferences[MAP_FOLLOW_HEADING_KEY] ?: true
         }
     }
 
@@ -199,13 +199,27 @@ class DockPreferences(private val context: Context) {
 
     fun getMap3dPerspectiveFlow(): Flow<Boolean> {
         return context.dataStore.data.map { preferences ->
-            preferences[MAP_3D_PERSPECTIVE_KEY] ?: false
+            preferences[MAP_3D_PERSPECTIVE_KEY] ?: true
         }
     }
 
     suspend fun setMap3dPerspective(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[MAP_3D_PERSPECTIVE_KEY] = enabled
+        }
+    }
+
+    private val UI_SCALE_PERCENT_KEY = androidx.datastore.preferences.core.intPreferencesKey("ui_scale_percent")
+
+    fun getUiScalePercentFlow(): Flow<Int> {
+        return context.dataStore.data.map { preferences ->
+            (preferences[UI_SCALE_PERCENT_KEY] ?: 100).coerceIn(75, 130)
+        }
+    }
+
+    suspend fun setUiScalePercent(percent: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[UI_SCALE_PERCENT_KEY] = percent.coerceIn(75, 130)
         }
     }
 }

@@ -4,13 +4,17 @@ import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
+val LocalUiScale = compositionLocalOf { 1.0f }
 
 private val AutomotiveColorScheme = darkColorScheme(
     primary = NeedleRed,
@@ -31,6 +35,7 @@ private val AutomotiveColorScheme = darkColorScheme(
 @Composable
 fun ClusterLauncherTheme(
     accentTheme: ClusterAccent = AccentNeedleRed,
+    uiScalePercent: Int = 100,
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
@@ -53,7 +58,20 @@ fun ClusterLauncherTheme(
         )
     }
 
-    CompositionLocalProvider(LocalClusterAccent provides accentTheme) {
+    val scaleFactor = (uiScalePercent.coerceIn(75, 130) / 100f)
+    val baseDensity = LocalDensity.current
+    val scaledDensity = remember(baseDensity, scaleFactor) {
+        Density(
+            density = baseDensity.density * scaleFactor,
+            fontScale = baseDensity.fontScale
+        )
+    }
+
+    CompositionLocalProvider(
+        LocalClusterAccent provides accentTheme,
+        LocalUiScale provides scaleFactor,
+        LocalDensity provides scaledDensity
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

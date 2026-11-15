@@ -1,7 +1,10 @@
 package com.joaohouto.clusterlauncher
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -58,6 +61,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.joaohouto.clusterlauncher.data.local.AppDatabase
 import com.joaohouto.clusterlauncher.data.local.PreferencesDataStore
+import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
 import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
@@ -110,6 +114,18 @@ class MainActivity : ComponentActivity() {
     private var isFullScreenMapOpen by mutableStateOf(false)
     private var isPlayerOpen by mutableStateOf(false)
 
+    private val packageChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val action = intent?.action ?: return
+            if (action == Intent.ACTION_PACKAGE_REMOVED ||
+                action == Intent.ACTION_PACKAGE_ADDED ||
+                action == Intent.ACTION_PACKAGE_REPLACED
+            ) {
+                appDrawerViewModel.loadApps(forceReload = true)
+            }
+        }
+    }
+
     private val requestAudioPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
@@ -131,6 +147,26 @@ class MainActivity : ComponentActivity() {
         com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper.updateDefaultLauncherState(this)
         com.joaohouto.clusterlauncher.ui.cockpit.components.OsmdroidMapHelper.initOsmdroid(this)
         com.joaohouto.clusterlauncher.ui.cockpit.components.MapLibreMapHelper.initMapLibre(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            MBTilesRepository.initialize(this@MainActivity)
+        }
+
+        try {
+            val pkgFilter = IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REPLACED)
+                addDataScheme("package")
+            }
+            ContextCompat.registerReceiver(
+                this,
+                packageChangeReceiver,
+                pkgFilter,
+                ContextCompat.RECEIVER_EXPORTED
+            )
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Failed to register packageChangeReceiver", e)
+        }
 
         MediaManager.init(this)
         PlayerController.getInstance(this).initialize()
@@ -142,6 +178,7 @@ class MainActivity : ComponentActivity() {
             val accentThemeId by appDrawerViewModel.accentThemeId.collectAsState()
             val currentAccent = remember(accentThemeId) { getAccentThemeById(accentThemeId) }
             val fullScreenMode by appDrawerViewModel.fullScreenMode.collectAsState()
+            val uiScalePercent by appDrawerViewModel.uiScalePercent.collectAsState()
             val isKeepScreenOn by preferencesDataStore.keepScreenOnFlow.collectAsState(initial = true)
             val isShowLyrics by preferencesDataStore.showLyricsFlow.collectAsState(initial = true)
             val autoCheckUpdates by preferencesDataStore.autoCheckUpdatesFlow.collectAsState(initial = true)
@@ -164,7 +201,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            ClusterLauncherTheme(accentTheme = currentAccent) {
+            ClusterLauncherTheme(
+                accentTheme = currentAccent,
+                uiScalePercent = uiScalePercent
+            ) {
                 LauncherMainContent(
                     viewModel = appDrawerViewModel,
                     homeViewModel = homeViewModel,
@@ -180,6 +220,14 @@ class MainActivity : ComponentActivity() {
                     onClosePlayer = { isPlayerOpen = false }
                 )
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(packageChangeReceiver)
+        } catch (_: Exception) {
         }
     }
 
@@ -307,7 +355,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun LauncherMainContent(
     viewModel: AppDrawerViewModel,
@@ -324,7 +371,6 @@ private fun LauncherMainContent(
     onClosePlayer: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
 
     val apps by viewModel.apps.collectAsState()
     val dockSlots by viewModel.dockSlots.collectAsState()
@@ -335,23 +381,12 @@ private fun LauncherMainContent(
     val mapFollowHeading by viewModel.mapFollowHeading.collectAsState()
     val map3dPerspective by viewModel.map3dPerspective.collectAsState()
     val accentThemeId by viewModel.accentThemeId.collectAsState()
-    val cockpitLayoutPreset by viewModel.cockpitLayoutPreset.collectAsState()
-    val mediaCardPosition by viewModel.mediaCardPosition.collectAsState()
     val swapCockpitColumns by viewModel.swapCockpitColumns.collectAsState()
     val hideMediaWhenNotPlaying by viewModel.hideMediaWhenNotPlaying.collectAsState()
-    val accent = LocalClusterAccent.current.primary
+    val uiScalePercent by viewModel.uiScalePercent.collectAsState()
 
-    val appSlides = remember(apps) {
-        if (apps.isEmpty()) listOf(emptyList()) else apps.chunked(10)
-    }
-
-    val isAndroidAuto = cockpitLayoutPreset == CockpitLayoutPreset.ANDROID_AUTO
     var isAndroidAutoDrawerOpen by remember { mutableStateOf(false) }
-
-    val totalAppSlides = appSlides.size
-    val extraPagesBeforeDrawer = 1
-    val pageCount = if (isAndroidAuto) 1 else extraPagesBeforeDrawer + totalAppSlides
-    val pagerState = rememberPagerState(pageCount = { pageCount })
+    var isMediaCardDismissed by remember { mutableStateOf(false) }
 
     var activeSlotForPicker by remember { mutableStateOf<DockSlot?>(null) }
     var showBrandPicker by remember { mutableStateOf(false) }
@@ -359,30 +394,17 @@ private fun LauncherMainContent(
     var settingsInitialTab by remember { mutableStateOf(SettingsTab.MAPS) }
     var showBluetoothPicker by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isAndroidAuto) {
-        if (!isAndroidAuto) {
-            isAndroidAutoDrawerOpen = false
-        } else if (pagerState.currentPage != 0) {
-            pagerState.scrollToPage(0)
-        }
-    }
-
     LaunchedEffect(scrollToCockpitTrigger) {
         if (scrollToCockpitTrigger > 0) {
             isAndroidAutoDrawerOpen = false
-            if (pagerState.currentPage != 0) {
-                pagerState.animateScrollToPage(0)
-            }
+            isMediaCardDismissed = false
         }
     }
 
-    BackHandler(enabled = !showPlayer && (showFullScreenMap || isAndroidAutoDrawerOpen || pagerState.currentPage != 0)) {
+    BackHandler(enabled = !showPlayer && (showFullScreenMap || isAndroidAutoDrawerOpen)) {
         when {
             showFullScreenMap -> onCloseFullScreenMap()
             isAndroidAutoDrawerOpen -> isAndroidAutoDrawerOpen = false
-            else -> coroutineScope.launch {
-                pagerState.animateScrollToPage(0)
-            }
         }
     }
 
@@ -394,97 +416,44 @@ private fun LauncherMainContent(
                 if (fullScreenMode || showFullScreenMap) Modifier else Modifier.safeDrawingPadding()
             )
     ) {
-        HorizontalPager(
-            state = pagerState,
-            userScrollEnabled = !showFullScreenMap && !showPlayer,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            when (page) {
-                0 -> {
-                    CockpitScreen(
-                        dockSlots = dockSlots,
-                        selectedCarBrand = selectedCarBrand,
-                        onSlotLongClick = { slot -> activeSlotForPicker = slot },
-                        onBrandClick = { showBrandPicker = true },
-                        onOpenDrawer = {
-                            if (isAndroidAuto) {
-                                isAndroidAutoDrawerOpen = !isAndroidAutoDrawerOpen
-                            } else {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(1)
-                                }
-                            }
-                        },
-                        onBluetoothClick = { viewModel.launchBluetooth(context) },
-                        onBluetoothLongClick = { showBluetoothPicker = true },
-                        onSettingsClick = {
-                            settingsInitialTab = if (AppUpdateManager.hasPendingUpdate) {
-                                SettingsTab.SYSTEM
-                            } else {
-                                SettingsTab.MAPS
-                            }
-                            showSettingsModal = true
-                        },
-                        onUpdateBadgeClick = {
-                            settingsInitialTab = SettingsTab.SYSTEM
-                            showSettingsModal = true
-                        },
-                        onOpenFullScreenMap = onOpenFullScreenMap,
-                        onOpenPlayer = onOpenPlayer,
-                        layoutPreset = cockpitLayoutPreset,
-                        showMapOnHome = showMapOnHome,
-                        isMapDarkMode = mapDarkMode,
-                        onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
-                        mapFollowHeading = mapFollowHeading,
-                        onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
-                        map3dPerspective = map3dPerspective,
-                        isMapPaused = showFullScreenMap || showPlayer || isAndroidAutoDrawerOpen,
-                        fullScreenMode = fullScreenMode,
-                        mediaCardPosition = mediaCardPosition,
-                        swapCockpitColumns = swapCockpitColumns,
-                        hideMediaWhenNotPlaying = hideMediaWhenNotPlaying,
-                        apps = apps,
-                        isAndroidAutoDrawerOpen = isAndroidAutoDrawerOpen,
-                        onAppClick = { app -> viewModel.launchApp(viewModel.getApplication(), app.packageName) },
-                        onPinToDock = { slotType, app -> viewModel.assignAppToSlot(slotType, app.packageName) }
-                    )
+        CockpitScreen(
+            dockSlots = dockSlots,
+            onSlotLongClick = { slot -> activeSlotForPicker = slot },
+            onOpenDrawer = {
+                isAndroidAutoDrawerOpen = !isAndroidAutoDrawerOpen
+            },
+            onBluetoothClick = { viewModel.launchBluetooth(context) },
+            onBluetoothLongClick = { showBluetoothPicker = true },
+            onSettingsClick = {
+                settingsInitialTab = if (AppUpdateManager.hasPendingUpdate) {
+                    SettingsTab.SYSTEM
+                } else {
+                    SettingsTab.MAPS
                 }
-                else -> {
-                    val slideIndex = page - extraPagesBeforeDrawer
-                    val slideApps = appSlides.getOrElse(slideIndex) { emptyList() }
-                    AppSlideScreen(
-                        apps = slideApps,
-                        onAppClick = { app -> viewModel.launchApp(viewModel.getApplication(), app.packageName) },
-                        onPinToDock = { slotType, app -> viewModel.assignAppToSlot(slotType, app.packageName) }
-                    )
-                }
-            }
-        }
-
-        // Slide pagination indicator dots (only visible when outside Cockpit and Player)
-        val totalSecondaryPages = pageCount - 1
-        if (!showPlayer && pagerState.currentPage > 0 && totalSecondaryPages > 1) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val activeSecondaryIndex = (pagerState.currentPage - 1).coerceIn(0, totalSecondaryPages - 1)
-                for (i in 0 until totalSecondaryPages) {
-                    val isActive = i == activeSecondaryIndex
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .height(6.dp)
-                            .width(if (isActive) 24.dp else 6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(if (isActive) accent else Color(0xFF383B44))
-                    )
-                }
-            }
-        }
+                showSettingsModal = true
+            },
+            onOpenFullScreenMap = onOpenFullScreenMap,
+            onOpenPlayer = {
+                isMediaCardDismissed = false
+                onOpenPlayer()
+            },
+            showMapOnHome = showMapOnHome,
+            isMapDarkMode = mapDarkMode,
+            onToggleMapDarkMode = { viewModel.setMapDarkMode(it) },
+            mapFollowHeading = mapFollowHeading,
+            onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
+            map3dPerspective = map3dPerspective,
+            isMapPaused = showFullScreenMap || showPlayer || isAndroidAutoDrawerOpen,
+            fullScreenMode = fullScreenMode,
+            swapCockpitColumns = swapCockpitColumns,
+            hideMediaWhenNotPlaying = hideMediaWhenNotPlaying,
+            isMediaCardDismissed = isMediaCardDismissed,
+            onDismissMediaCard = { isMediaCardDismissed = true },
+            apps = apps,
+            isAndroidAutoDrawerOpen = isAndroidAutoDrawerOpen,
+            onAppClick = { app -> viewModel.launchApp(viewModel.getApplication(), app.packageName) },
+            onPinToDock = { slotType, app -> viewModel.assignAppToSlot(slotType, app.packageName) }
+        )
 
         // Integrated Full-Screen Player Overlay
         AnimatedVisibility(
@@ -534,8 +503,6 @@ private fun LauncherMainContent(
                 initialTab = settingsInitialTab,
                 selectedAccentId = accentThemeId,
                 onSelectAccent = { viewModel.selectAccentTheme(it) },
-                selectedLayoutPreset = cockpitLayoutPreset,
-                onSelectLayoutPreset = { viewModel.setCockpitLayoutPreset(it) },
                 showMapOnHome = showMapOnHome,
                 onToggleShowMap = { viewModel.setShowMapOnHome(it) },
                 isMapDarkMode = mapDarkMode,
@@ -546,12 +513,12 @@ private fun LauncherMainContent(
                 onToggleMap3dPerspective = { viewModel.setMap3dPerspective(it) },
                 fullScreenMode = fullScreenMode,
                 onToggleFullScreenMode = { viewModel.setFullScreenMode(it) },
-                mediaCardPosition = mediaCardPosition,
-                onSelectMediaCardPosition = { viewModel.setMediaCardPosition(it) },
                 swapCockpitColumns = swapCockpitColumns,
                 onToggleSwapCockpitColumns = { viewModel.setSwapCockpitColumns(it) },
                 hideMediaWhenNotPlaying = hideMediaWhenNotPlaying,
                 onToggleHideMediaWhenNotPlaying = { viewModel.setHideMediaWhenNotPlaying(it) },
+                uiScalePercent = uiScalePercent,
+                onSelectUiScalePercent = { viewModel.setUiScalePercent(it) },
                 bluetoothPackage = bluetoothPackage,
                 onSelectBluetoothPackage = { viewModel.setBluetoothPackage(it) },
                 onOpenBluetoothPicker = { showBluetoothPicker = true },

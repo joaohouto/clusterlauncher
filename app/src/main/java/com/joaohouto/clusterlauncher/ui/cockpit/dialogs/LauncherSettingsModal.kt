@@ -83,8 +83,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -109,6 +112,7 @@ import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.ui.theme.ALL_ACCENT_THEMES
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalUiScale
 import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
 import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
@@ -139,24 +143,22 @@ fun LauncherSettingsModal(
     initialTab: SettingsTab = SettingsTab.MAPS,
     selectedAccentId: String = "needle_red",
     onSelectAccent: (String) -> Unit = {},
-    selectedLayoutPreset: CockpitLayoutPreset = CockpitLayoutPreset.CLASSIC,
-    onSelectLayoutPreset: (CockpitLayoutPreset) -> Unit = {},
     showMapOnHome: Boolean = true,
     onToggleShowMap: (Boolean) -> Unit = {},
     isMapDarkMode: Boolean = false,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
-    mapFollowHeading: Boolean = false,
+    mapFollowHeading: Boolean = true,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
-    map3dPerspective: Boolean = false,
+    map3dPerspective: Boolean = true,
     onToggleMap3dPerspective: (Boolean) -> Unit = {},
     fullScreenMode: Boolean = false,
     onToggleFullScreenMode: (Boolean) -> Unit = {},
-    mediaCardPosition: String = "right",
-    onSelectMediaCardPosition: (String) -> Unit = {},
     swapCockpitColumns: Boolean = false,
     onToggleSwapCockpitColumns: (Boolean) -> Unit = {},
     hideMediaWhenNotPlaying: Boolean = false,
     onToggleHideMediaWhenNotPlaying: (Boolean) -> Unit = {},
+    uiScalePercent: Int = 100,
+    onSelectUiScalePercent: (Int) -> Unit = {},
     bluetoothPackage: String? = null,
     onSelectBluetoothPackage: (String?) -> Unit = {},
     onOpenBluetoothPicker: () -> Unit = {},
@@ -201,7 +203,7 @@ fun LauncherSettingsModal(
                 isImporting = false
                 result.fold(
                     onSuccess = { file ->
-                        Toast.makeText(context, "Mapa importado: ${file.name}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Mapa carregado: ${file.name}", Toast.LENGTH_SHORT).show()
                     },
                     onFailure = { error ->
                         Toast.makeText(context, error.message ?: "Falha ao importar o mapa.", Toast.LENGTH_LONG).show()
@@ -229,6 +231,16 @@ fun LauncherSettingsModal(
             }
         }
 
+        val baseDensity = LocalDensity.current
+        val uiScale = LocalUiScale.current
+        val dialogScaledDensity = remember(baseDensity.density, baseDensity.fontScale, uiScale) {
+            Density(
+                density = baseDensity.density * uiScale,
+                fontScale = baseDensity.fontScale
+            )
+        }
+
+        CompositionLocalProvider(LocalDensity provides dialogScaledDensity) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
@@ -435,14 +447,10 @@ fun LauncherSettingsModal(
                             selectedBrand = selectedBrand,
                             selectedAccentId = selectedAccentId,
                             onSelectAccent = onSelectAccent,
-                            selectedLayoutPreset = selectedLayoutPreset,
-                            onSelectLayoutPreset = onSelectLayoutPreset,
                             onSelectBrandClick = onSelectBrandClick
                         )
 
                         SettingsTab.SYSTEM -> SystemSettingsPanel(
-                            selectedLayoutPreset = selectedLayoutPreset,
-                            onSelectLayoutPreset = onSelectLayoutPreset,
                             autoCheckUpdates = autoCheckUpdates,
                             onToggleAutoCheckUpdates = { scope.launch { preferencesDataStore.saveAutoCheckUpdates(it) } },
                             updateStatus = updateStatus,
@@ -459,12 +467,12 @@ fun LauncherSettingsModal(
                             onToggleMap3dPerspective = onToggleMap3dPerspective,
                             fullScreenMode = fullScreenMode,
                             onToggleFullScreenMode = onToggleFullScreenMode,
-                            mediaCardPosition = mediaCardPosition,
-                            onSelectMediaCardPosition = onSelectMediaCardPosition,
                             swapCockpitColumns = swapCockpitColumns,
                             onToggleSwapCockpitColumns = onToggleSwapCockpitColumns,
                             hideMediaWhenNotPlaying = hideMediaWhenNotPlaying,
                             onToggleHideMediaWhenNotPlaying = onToggleHideMediaWhenNotPlaying,
+                            uiScalePercent = uiScalePercent,
+                            onSelectUiScalePercent = onSelectUiScalePercent,
                             isDefaultLauncher = isDefaultLauncher,
                             onSetDefaultLauncher = { DefaultLauncherHelper.requestSetDefaultLauncher(context) },
                             bluetoothPackage = bluetoothPackage,
@@ -490,6 +498,7 @@ fun LauncherSettingsModal(
                     }
                 }
             }
+        }
         }
     }
 
@@ -1007,12 +1016,9 @@ private fun VehicleSettingsPanel(
     selectedBrand: CarBrand,
     selectedAccentId: String,
     onSelectAccent: (String) -> Unit,
-    selectedLayoutPreset: CockpitLayoutPreset,
-    onSelectLayoutPreset: (CockpitLayoutPreset) -> Unit,
     onSelectBrandClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
-    val accent = LocalClusterAccent.current.primary
 
     Column(
         modifier = Modifier
@@ -1028,18 +1034,11 @@ private fun VehicleSettingsPanel(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Personalize o padrão de organização, emblema da montadora e iluminação do cockpit.",
+                text = "Personalize o emblema da montadora e iluminação do cockpit.",
                 color = TextSecondary,
                 fontSize = 12.sp
             )
         }
-
-        // Cartão 0: Padrão de Organização (Layout)
-        LayoutPresetSelectorCard(
-            selectedPreset = selectedLayoutPreset,
-            onSelectPreset = onSelectLayoutPreset,
-            accent = accent
-        )
 
         // Cartão 1: Marca do Veículo
         Surface(
@@ -1189,124 +1188,10 @@ private fun VehicleSettingsPanel(
 }
 
 /**
- * Cartão seletor de Padrão de Organização (Cockpit Clássico vs Android Auto Split).
- */
-@Composable
-private fun LayoutPresetSelectorCard(
-    selectedPreset: CockpitLayoutPreset,
-    onSelectPreset: (CockpitLayoutPreset) -> Unit,
-    accent: Color
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        color = SurfaceCard,
-        border = BorderStroke(1.dp, SurfaceCardBorder)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column {
-                Text(
-                    text = stringResource(R.string.layout_preset_title),
-                    color = TextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(R.string.layout_preset_subtitle),
-                    color = TextSecondary,
-                    fontSize = 12.sp
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                val options = listOf(
-                    Triple(
-                        CockpitLayoutPreset.CLASSIC,
-                        stringResource(R.string.layout_classic_name),
-                        stringResource(R.string.layout_classic_desc)
-                    ),
-                    Triple(
-                        CockpitLayoutPreset.ANDROID_AUTO,
-                        stringResource(R.string.layout_android_auto_name),
-                        stringResource(R.string.layout_android_auto_desc)
-                    )
-                )
-
-                options.forEach { (preset, title, desc) ->
-                    val isSelected = selectedPreset == preset
-                    val borderColor = if (isSelected) accent else SurfaceCardBorder
-                    val bgColor = if (isSelected) accent.copy(alpha = 0.12f) else Color(0xFF101215)
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onSelectPreset(preset) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = bgColor,
-                        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = title,
-                                    color = if (isSelected) TextPrimary else TextSecondary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                if (isSelected) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .clip(CircleShape)
-                                            .background(accent),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                }
-                            }
-                            Text(
-                                text = desc,
-                                color = TextDisabled,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
  * Painel da aba Sistema: switches de exibição do cockpit, launcher padrão e permissões.
  */
 @Composable
 private fun SystemSettingsPanel(
-    selectedLayoutPreset: CockpitLayoutPreset = CockpitLayoutPreset.CLASSIC,
-    onSelectLayoutPreset: (CockpitLayoutPreset) -> Unit = {},
     autoCheckUpdates: Boolean = true,
     onToggleAutoCheckUpdates: (Boolean) -> Unit = {},
     updateStatus: UpdateStatus = UpdateStatus.Idle,
@@ -1319,16 +1204,16 @@ private fun SystemSettingsPanel(
     onToggleMapDarkMode: (Boolean) -> Unit,
     mapFollowHeading: Boolean,
     onToggleMapFollowHeading: (Boolean) -> Unit,
-    map3dPerspective: Boolean = false,
+    map3dPerspective: Boolean = true,
     onToggleMap3dPerspective: (Boolean) -> Unit = {},
     fullScreenMode: Boolean,
     onToggleFullScreenMode: (Boolean) -> Unit,
-    mediaCardPosition: String = "right",
-    onSelectMediaCardPosition: (String) -> Unit = {},
     swapCockpitColumns: Boolean = false,
     onToggleSwapCockpitColumns: (Boolean) -> Unit = {},
     hideMediaWhenNotPlaying: Boolean = false,
     onToggleHideMediaWhenNotPlaying: (Boolean) -> Unit = {},
+    uiScalePercent: Int = 100,
+    onSelectUiScalePercent: (Int) -> Unit = {},
     isDefaultLauncher: Boolean,
     onSetDefaultLauncher: () -> Unit,
     bluetoothPackage: String? = null,
@@ -1372,13 +1257,6 @@ private fun SystemSettingsPanel(
             onCheckUpdatesNow = onCheckUpdatesNow,
             onDownloadAndInstallUpdate = onDownloadAndInstallUpdate,
             onInstallReadyApk = onInstallReadyApk,
-            accent = accent
-        )
-
-        // Seletor de Padrão de Organização também acessível em Sistema
-        LayoutPresetSelectorCard(
-            selectedPreset = selectedLayoutPreset,
-            onSelectPreset = onSelectLayoutPreset,
             accent = accent
         )
 
@@ -1485,68 +1363,6 @@ private fun SystemSettingsPanel(
                     )
                 }
 
-                // Seletor: Posição do Card de Mídia (apenas no modo Clássico)
-                if (selectedLayoutPreset == CockpitLayoutPreset.CLASSIC) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.media_card_position_title),
-                                color = TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = stringResource(R.string.media_card_position_desc),
-                                color = TextDisabled,
-                                fontSize = 11.sp
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            val isRight = mediaCardPosition != "left"
-                            Surface(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .clickable { onSelectMediaCardPosition("right") },
-                                shape = RoundedCornerShape(6.dp),
-                                color = if (isRight) accent.copy(alpha = 0.15f) else Color(0xFF101215),
-                                border = BorderStroke(1.dp, if (isRight) accent else SurfaceCardBorder)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.media_pos_right),
-                                    color = if (isRight) TextPrimary else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isRight) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
-                            }
-
-                            Surface(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .clickable { onSelectMediaCardPosition("left") },
-                                shape = RoundedCornerShape(6.dp),
-                                color = if (!isRight) accent.copy(alpha = 0.15f) else Color(0xFF101215),
-                                border = BorderStroke(1.dp, if (!isRight) accent else SurfaceCardBorder)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.media_pos_left),
-                                    color = if (!isRight) TextPrimary else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (!isRight) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
                 // Toggle: Inverter Lados do Cockpit (Swap Columns)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1607,6 +1423,109 @@ private fun SystemSettingsPanel(
                             uncheckedTrackColor = Color(0xFF1E222B)
                         )
                     )
+                }
+
+                // Seletor: Escala da Interface (UI Scale)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.ui_scale_title),
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = stringResource(R.string.ui_scale_desc),
+                                color = TextDisabled,
+                                fontSize = 11.sp
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF101215),
+                            border = BorderStroke(1.dp, accent.copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                text = "$uiScalePercent%",
+                                color = accent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onSelectUiScalePercent((uiScalePercent - 5).coerceIn(75, 130)) },
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF1E222B),
+                            border = BorderStroke(1.dp, SurfaceCardBorder)
+                        ) {
+                            Text(
+                                text = "-5%",
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+
+                        val scalePresets = listOf(80, 90, 100, 110, 120)
+                        scalePresets.forEach { preset ->
+                            val isSelected = uiScalePercent == preset
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { onSelectUiScalePercent(preset) },
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isSelected) accent.copy(alpha = 0.16f) else Color(0xFF101215),
+                                border = BorderStroke(1.dp, if (isSelected) accent else SurfaceCardBorder)
+                            ) {
+                                Text(
+                                    text = "$preset%",
+                                    color = if (isSelected) TextPrimary else TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 6.dp)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onSelectUiScalePercent((uiScalePercent + 5).coerceIn(75, 130)) },
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF1E222B),
+                            border = BorderStroke(1.dp, SurfaceCardBorder)
+                        ) {
+                            Text(
+                                text = "+5%",
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

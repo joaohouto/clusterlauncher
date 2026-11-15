@@ -235,10 +235,11 @@ class VehicleMarkerOverlay(
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
         if (shadow) return
-        if (location.latitude == 0.0 && location.longitude == 0.0) return
+        val lat = MapProjectionHelper.resolveValidLat(location)
+        val lon = MapProjectionHelper.resolveValidLon(location)
 
         val point = Point()
-        mapView.projection.toPixels(GeoPoint(location.latitude, location.longitude), point)
+        mapView.projection.toPixels(GeoPoint(lat, lon), point)
 
         val cx = point.x.toFloat()
         val cy = point.y.toFloat()
