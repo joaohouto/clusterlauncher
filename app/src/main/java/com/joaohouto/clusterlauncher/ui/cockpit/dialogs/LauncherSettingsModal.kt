@@ -39,16 +39,22 @@ import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.FileOpen
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -57,6 +63,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,7 +91,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.joaohouto.clusterlauncher.BuildConfig
 import com.joaohouto.clusterlauncher.R
+import com.joaohouto.clusterlauncher.data.local.PreferencesDataStore
 import com.joaohouto.clusterlauncher.data.location.GpsLocationRepository
 import com.joaohouto.clusterlauncher.data.map.DownloadProgress
 import com.joaohouto.clusterlauncher.data.map.MBTilesDownloader
@@ -94,10 +103,13 @@ import com.joaohouto.clusterlauncher.data.map.TileProvider
 import com.joaohouto.clusterlauncher.data.model.CarBrand
 import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.repository.AutomotivePackageResolver
+import com.joaohouto.clusterlauncher.data.update.AppUpdateManager
+import com.joaohouto.clusterlauncher.data.update.UpdateStatus
 import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.ui.theme.ALL_ACCENT_THEMES
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
 import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
@@ -107,9 +119,12 @@ import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
 import com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.roundToInt
 
-private enum class SettingsTab(val titleRes: Int, val icon: ImageVector) {
+enum class SettingsTab(val titleRes: Int, val icon: ImageVector) {
     MAPS(R.string.tab_maps, Icons.Rounded.Map),
+    AUDIO(R.string.tab_audio, Icons.AutoMirrored.Rounded.VolumeUp),
+    LYRICS(R.string.tab_lyrics, Icons.Rounded.GraphicEq),
     VEHICLE(R.string.tab_vehicle, Icons.Rounded.DirectionsCar),
     SYSTEM(R.string.tab_system, Icons.Rounded.Settings)
 }
@@ -121,6 +136,7 @@ private enum class SettingsTab(val titleRes: Int, val icon: ImageVector) {
 @Composable
 fun LauncherSettingsModal(
     selectedBrand: CarBrand,
+    initialTab: SettingsTab = SettingsTab.MAPS,
     selectedAccentId: String = "needle_red",
     onSelectAccent: (String) -> Unit = {},
     selectedLayoutPreset: CockpitLayoutPreset = CockpitLayoutPreset.CLASSIC,
@@ -155,8 +171,19 @@ fun LauncherSettingsModal(
     val hasGpsPermission by GpsLocationRepository.hasPermission.collectAsState()
     val mediaState by MediaManager.mediaState.collectAsState()
     val isDefaultLauncher by DefaultLauncherHelper.isDefaultLauncher.collectAsState()
+    val preferencesDataStore = remember(context) { PreferencesDataStore.getInstance(context) }
+    val appVolumePercent by preferencesDataStore.appVolumePercentFlow.collectAsState(initial = 100)
+    val isLoudnessEnabled by preferencesDataStore.loudnessBoostFlow.collectAsState(initial = true)
+    val isKeepScreenOn by preferencesDataStore.keepScreenOnFlow.collectAsState(initial = true)
+    val isShowLyrics by preferencesDataStore.showLyricsFlow.collectAsState(initial = true)
+    val lyricsOffsetMs by preferencesDataStore.lyricsOffsetMsFlow.collectAsState(initial = 0)
+    val audioSyncOffsetMs by preferencesDataStore.audioSyncOffsetMsFlow.collectAsState(initial = 0)
+    val isAutoplayOnStart by preferencesDataStore.autoplayOnStartFlow.collectAsState(initial = true)
+    val autoCheckUpdates by preferencesDataStore.autoCheckUpdatesFlow.collectAsState(initial = true)
+    val updateStatus by AppUpdateManager.updateStatus.collectAsState()
+    val hasUpdateBadge = updateStatus is UpdateStatus.UpdateAvailable || updateStatus is UpdateStatus.ReadyToInstall
 
-    var activeTab by remember { mutableStateOf(SettingsTab.MAPS) }
+    var activeTab by remember(initialTab) { mutableStateOf(initialTab) }
     var selectedRadiusKm by remember { mutableIntStateOf(25) }
     var selectedProvider by remember { mutableStateOf(TileProvider.OSM_STANDARD) }
     var mapToDelete by remember { mutableStateOf<MapFileInfo?>(null) }
@@ -238,7 +265,7 @@ fun LauncherSettingsModal(
                                 color = Color(0xFF1E222B)
                             ) {
                                 Text(
-                                    text = "v1.6.1",
+                                    text = "v${BuildConfig.VERSION_NAME}",
                                     color = TextSecondary,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -278,8 +305,17 @@ fun LauncherSettingsModal(
                                     text = stringResource(tab.titleRes),
                                     color = contentColor,
                                     fontSize = 14.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
                                 )
+                                if (tab == SettingsTab.SYSTEM && hasUpdateBadge) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(accent)
+                                    )
+                                }
                             }
                         }
                     }
@@ -375,6 +411,26 @@ fun LauncherSettingsModal(
                             onToggleMap3dPerspective = onToggleMap3dPerspective
                         )
 
+                        SettingsTab.AUDIO -> AudioSettingsPanel(
+                            isLoudnessEnabled = isLoudnessEnabled,
+                            isAutoplayOnStart = isAutoplayOnStart,
+                            isKeepScreenOn = isKeepScreenOn,
+                            currentAppVolumePercent = appVolumePercent,
+                            currentAudioSyncOffsetMs = audioSyncOffsetMs,
+                            onSelectAppVolume = { scope.launch { preferencesDataStore.saveAppVolumePercent(it) } },
+                            onToggleLoudness = { scope.launch { preferencesDataStore.saveLoudnessBoost(it) } },
+                            onToggleAutoplayOnStart = { scope.launch { preferencesDataStore.saveAutoplayOnStart(it) } },
+                            onToggleKeepScreenOn = { scope.launch { preferencesDataStore.saveKeepScreenOn(it) } },
+                            onSelectAudioSyncOffset = { scope.launch { preferencesDataStore.saveAudioSyncOffsetMs(it) } }
+                        )
+
+                        SettingsTab.LYRICS -> LyricsSettingsPanel(
+                            isShowLyrics = isShowLyrics,
+                            currentLyricsOffsetMs = lyricsOffsetMs,
+                            onToggleShowLyrics = { scope.launch { preferencesDataStore.saveShowLyrics(it) } },
+                            onSelectLyricsOffset = { scope.launch { preferencesDataStore.saveLyricsOffsetMs(it) } }
+                        )
+
                         SettingsTab.VEHICLE -> VehicleSettingsPanel(
                             selectedBrand = selectedBrand,
                             selectedAccentId = selectedAccentId,
@@ -387,6 +443,12 @@ fun LauncherSettingsModal(
                         SettingsTab.SYSTEM -> SystemSettingsPanel(
                             selectedLayoutPreset = selectedLayoutPreset,
                             onSelectLayoutPreset = onSelectLayoutPreset,
+                            autoCheckUpdates = autoCheckUpdates,
+                            onToggleAutoCheckUpdates = { scope.launch { preferencesDataStore.saveAutoCheckUpdates(it) } },
+                            updateStatus = updateStatus,
+                            onCheckUpdatesNow = { AppUpdateManager.checkForUpdates(context, isManual = true) },
+                            onDownloadAndInstallUpdate = { release -> AppUpdateManager.downloadAndInstall(context, release) },
+                            onInstallReadyApk = { file -> AppUpdateManager.installApk(context, file) },
                             showMapOnHome = showMapOnHome,
                             onToggleShowMap = onToggleShowMap,
                             isMapDarkMode = isMapDarkMode,
@@ -1245,6 +1307,12 @@ private fun LayoutPresetSelectorCard(
 private fun SystemSettingsPanel(
     selectedLayoutPreset: CockpitLayoutPreset = CockpitLayoutPreset.CLASSIC,
     onSelectLayoutPreset: (CockpitLayoutPreset) -> Unit = {},
+    autoCheckUpdates: Boolean = true,
+    onToggleAutoCheckUpdates: (Boolean) -> Unit = {},
+    updateStatus: UpdateStatus = UpdateStatus.Idle,
+    onCheckUpdatesNow: () -> Unit = {},
+    onDownloadAndInstallUpdate: (com.joaohouto.clusterlauncher.data.update.ReleaseInfo) -> Unit = {},
+    onInstallReadyApk: (java.io.File) -> Unit = {},
     showMapOnHome: Boolean,
     onToggleShowMap: (Boolean) -> Unit,
     isMapDarkMode: Boolean,
@@ -1295,6 +1363,17 @@ private fun SystemSettingsPanel(
                 fontSize = 12.sp
             )
         }
+
+        // Cartão: Atualizações do Aplicativo (GitHub Releases)
+        AppUpdatesCard(
+            autoCheckUpdates = autoCheckUpdates,
+            onToggleAutoCheckUpdates = onToggleAutoCheckUpdates,
+            updateStatus = updateStatus,
+            onCheckUpdatesNow = onCheckUpdatesNow,
+            onDownloadAndInstallUpdate = onDownloadAndInstallUpdate,
+            onInstallReadyApk = onInstallReadyApk,
+            accent = accent
+        )
 
         // Seletor de Padrão de Organização também acessível em Sistema
         LayoutPresetSelectorCard(
@@ -1779,6 +1858,792 @@ private fun SystemSettingsPanel(
             Text(text = "joaohouto.github.io/clusterlauncher", color = TextDisabled, fontSize = 11.sp)
             Spacer(modifier = Modifier.width(4.dp))
             Icon(imageVector = Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, tint = TextDisabled, modifier = Modifier.size(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun AudioSettingsPanel(
+    isLoudnessEnabled: Boolean,
+    isAutoplayOnStart: Boolean,
+    isKeepScreenOn: Boolean,
+    currentAppVolumePercent: Int,
+    currentAudioSyncOffsetMs: Int,
+    onSelectAppVolume: (Int) -> Unit,
+    onToggleLoudness: (Boolean) -> Unit,
+    onToggleAutoplayOnStart: (Boolean) -> Unit,
+    onToggleKeepScreenOn: (Boolean) -> Unit,
+    onSelectAudioSyncOffset: (Int) -> Unit
+) {
+    val accent = LocalClusterAccent.current
+    val scrollState = rememberScrollState()
+    var volumeSliderValue by remember(currentAppVolumePercent) {
+        mutableFloatStateOf(currentAppVolumePercent.toFloat())
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column {
+            Text(
+                text = stringResource(R.string.settings_audio_category),
+                color = TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Parâmetros de processamento de som e comportamento do tocador integrado.",
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+        }
+
+        // 1. Normalização de Volume (EBU R128)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_loudness_title),
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_loudness_subtitle),
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Switch(
+                    checked = isLoudnessEnabled,
+                    onCheckedChange = onToggleLoudness,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = accent.primary,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = MetallicIntermediate,
+                        uncheckedBorderColor = SurfaceCardBorder
+                    )
+                )
+            }
+        }
+
+        // 2. Volume Geral do App
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_volume_title),
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_volume_subtitle),
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.settings_volume_percent, volumeSliderValue.roundToInt()),
+                        color = accent.primary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Slider(
+                    value = volumeSliderValue,
+                    onValueChange = { volumeSliderValue = it },
+                    onValueChangeFinished = { onSelectAppVolume(volumeSliderValue.roundToInt()) },
+                    valueRange = 10f..100f,
+                    steps = 17,
+                    colors = SliderDefaults.colors(
+                        thumbColor = accent.primary,
+                        activeTrackColor = accent.primary,
+                        inactiveTrackColor = Color(0xFF1E222B)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // 3. Autoplay on Launch
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_autoplay_title),
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_autoplay_subtitle),
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Switch(
+                    checked = isAutoplayOnStart,
+                    onCheckedChange = onToggleAutoplayOnStart,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = accent.primary,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = MetallicIntermediate,
+                        uncheckedBorderColor = SurfaceCardBorder
+                    )
+                )
+            }
+        }
+
+        // 4. Manter tela ligada (Keep Screen On)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_screen_on_title),
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_screen_on_subtitle),
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Switch(
+                    checked = isKeepScreenOn,
+                    onCheckedChange = onToggleKeepScreenOn,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = accent.primary,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = MetallicIntermediate,
+                        uncheckedBorderColor = SurfaceCardBorder
+                    )
+                )
+            }
+        }
+
+        // 5. Ajuste manual de latência de áudio (-500 ms a +500 ms, passo 50 ms)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            var syncSliderValue by remember(currentAudioSyncOffsetMs) {
+                mutableFloatStateOf(currentAudioSyncOffsetMs.toFloat())
+            }
+            val snappedMs = ((syncSliderValue / 50f).roundToInt() * 50).coerceIn(-500, 500)
+            val offsetLabel = if (snappedMs > 0) "+$snappedMs ms" else "$snappedMs ms"
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_audio_sync_title),
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_audio_sync_subtitle),
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Text(
+                        text = offsetLabel,
+                        color = accent.primary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                syncSliderValue = 0f
+                                onSelectAudioSyncOffset(0)
+                            }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Slider(
+                    value = syncSliderValue,
+                    onValueChange = { raw ->
+                        syncSliderValue = ((raw / 50f).roundToInt() * 50).coerceIn(-500, 500).toFloat()
+                    },
+                    onValueChangeFinished = {
+                        val finalMs = ((syncSliderValue / 50f).roundToInt() * 50).coerceIn(-500, 500)
+                        onSelectAudioSyncOffset(finalMs)
+                    },
+                    valueRange = -500f..500f,
+                    steps = 19,
+                    colors = SliderDefaults.colors(
+                        thumbColor = accent.primary,
+                        activeTrackColor = accent.primary,
+                        inactiveTrackColor = Color(0xFF1E222B)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LyricsSettingsPanel(
+    isShowLyrics: Boolean,
+    currentLyricsOffsetMs: Int,
+    onToggleShowLyrics: (Boolean) -> Unit,
+    onSelectLyricsOffset: (Int) -> Unit
+) {
+    val accent = LocalClusterAccent.current
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column {
+            Text(
+                text = "Letras & Sincronia",
+                color = TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Exibição de letras .LRC e calibração de timing para áudio veicular.",
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+        }
+
+        // 1. Switch Exibir Letras
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_lyrics_title),
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_lyrics_subtitle),
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Switch(
+                    checked = isShowLyrics,
+                    onCheckedChange = onToggleShowLyrics,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = accent.primary,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = MetallicIntermediate,
+                        uncheckedBorderColor = SurfaceCardBorder
+                    )
+                )
+            }
+        }
+
+        // 2. Ajuste Fino de Sincronia / Latência (Offset em ms)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_lyrics_sync_title),
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_lyrics_sync_subtitle),
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    val offsetText = if (currentLyricsOffsetMs > 0) "+$currentLyricsOffsetMs ms" else "$currentLyricsOffsetMs ms"
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFF101215),
+                        border = BorderStroke(1.dp, accent.primary.copy(alpha = 0.5f))
+                    ) {
+                        Text(
+                            text = offsetText,
+                            color = accent.primary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onSelectLyricsOffset(currentLyricsOffsetMs - 100) },
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF1E222B),
+                        border = BorderStroke(1.dp, SurfaceCardBorder)
+                    ) {
+                        Text(
+                            text = "-100 ms (Adiantar)",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onSelectLyricsOffset(0) },
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF1E222B),
+                        border = BorderStroke(1.dp, SurfaceCardBorder)
+                    ) {
+                        Text(
+                            text = "0 ms (Zerar)",
+                            color = if (currentLyricsOffsetMs == 0) accent.primary else TextSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onSelectLyricsOffset(currentLyricsOffsetMs + 100) },
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF1E222B),
+                        border = BorderStroke(1.dp, SurfaceCardBorder)
+                    ) {
+                        Text(
+                            text = "+100 ms (Atrasar)",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Informações sobre Arquivos LRC
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = SurfaceCard,
+            border = BorderStroke(1.dp, SurfaceCardBorder)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Suporte a Arquivos de Letras (.LRC)",
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = stringResource(R.string.settings_lyrics_lrc_info),
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppUpdatesCard(
+    autoCheckUpdates: Boolean,
+    onToggleAutoCheckUpdates: (Boolean) -> Unit,
+    updateStatus: UpdateStatus,
+    onCheckUpdatesNow: () -> Unit,
+    onDownloadAndInstallUpdate: (com.joaohouto.clusterlauncher.data.update.ReleaseInfo) -> Unit,
+    onInstallReadyApk: (java.io.File) -> Unit,
+    accent: Color
+) {
+    val hasUpdate = updateStatus is UpdateStatus.UpdateAvailable || updateStatus is UpdateStatus.ReadyToInstall
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceCard,
+        border = BorderStroke(1.dp, if (hasUpdate) accent else SurfaceCardBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SystemUpdateAlt,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = stringResource(R.string.update_section_title),
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.update_current_version, BuildConfig.VERSION_NAME),
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                when (updateStatus) {
+                    is UpdateStatus.Checking -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = accent,
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = stringResource(R.string.update_status_checking),
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    is UpdateStatus.UpdateAvailable -> {
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onDownloadAndInstallUpdate(updateStatus.release) },
+                            shape = RoundedCornerShape(8.dp),
+                            color = accent,
+                            border = BorderStroke(1.dp, accent)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.update_btn_download_install, updateStatus.release.tagName),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
+                            )
+                        }
+                    }
+                    is UpdateStatus.ReadyToInstall -> {
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onInstallReadyApk(updateStatus.apkFile) },
+                            shape = RoundedCornerShape(8.dp),
+                            color = accent,
+                            border = BorderStroke(1.dp, accent)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.update_btn_install_ready, updateStatus.release.tagName),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
+                            )
+                        }
+                    }
+                    is UpdateStatus.Downloading -> {
+                        Text(
+                            text = stringResource(
+                                R.string.update_status_downloading,
+                                updateStatus.release.tagName,
+                                updateStatus.progressPercent
+                            ),
+                            color = accent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    else -> {
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onCheckUpdatesNow() },
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF1E222B),
+                            border = BorderStroke(1.dp, SurfaceCardBorder)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Refresh,
+                                    contentDescription = null,
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.update_btn_check),
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            when (updateStatus) {
+                is UpdateStatus.UpToDate -> {
+                    Text(
+                        text = stringResource(R.string.update_status_up_to_date, updateStatus.currentVersion),
+                        color = Color(0xFF81C784),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                is UpdateStatus.Error -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = updateStatus.message,
+                            color = NeedleRed,
+                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (updateStatus.release != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onDownloadAndInstallUpdate(updateStatus.release) },
+                                shape = RoundedCornerShape(8.dp),
+                                color = accent.copy(alpha = 0.2f),
+                                border = BorderStroke(1.dp, accent)
+                            ) {
+                                Text(
+                                    text = "Tentar novamente",
+                                    color = accent,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                is UpdateStatus.Downloading -> {
+                    val progressFraction = (updateStatus.progressPercent / 100f).coerceIn(0f, 1f)
+                    LinearProgressIndicator(
+                        progress = { progressFraction },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = accent,
+                        trackColor = Color(0xFF262930)
+                    )
+                }
+                is UpdateStatus.UpdateAvailable -> {
+                    if (updateStatus.release.changelog.isNotBlank()) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF101215),
+                            border = BorderStroke(1.dp, SurfaceCardBorder)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = stringResource(R.string.update_status_available, updateStatus.release.title),
+                                    color = accent,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = updateStatus.release.changelog,
+                                    color = TextSecondary,
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    maxLines = 8,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+                else -> {}
+            }
+
+            // Switch: Buscar atualizações automaticamente ao iniciar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.update_auto_check_title),
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = stringResource(R.string.update_auto_check_subtitle),
+                        color = TextDisabled,
+                        fontSize = 11.sp
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Switch(
+                    checked = autoCheckUpdates,
+                    onCheckedChange = onToggleAutoCheckUpdates,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = accent,
+                        uncheckedThumbColor = TextDisabled,
+                        uncheckedTrackColor = Color(0xFF1E222B)
+                    )
+                )
+            }
         }
     }
 }

@@ -19,12 +19,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
+import com.joaohouto.clusterlauncher.data.repository.AutomotivePackageResolver
 import com.joaohouto.clusterlauncher.ui.components.MetallicButton
 
 @Composable
 fun QuickDockBar(
     slots: List<DockSlot>,
     onSlotLongClick: (DockSlot) -> Unit,
+    onOpenPlayer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -38,7 +40,7 @@ fun QuickDockBar(
     ) {
         slots.forEachIndexed { index, slot ->
             MetallicButton(
-                onClick = { launchSlotApp(context, slot) { onSlotLongClick(slot) } },
+                onClick = { launchSlotApp(context, slot, onOpenPlayer = onOpenPlayer) { onSlotLongClick(slot) } },
                 onLongClick = { onSlotLongClick(slot) },
                 icon = slot.icon,
                 text = stringResource(slot.titleRes),
@@ -60,9 +62,15 @@ fun QuickDockBar(
 internal fun launchSlotApp(
     context: Context,
     slot: DockSlot,
+    onOpenPlayer: () -> Unit = {},
     onFallbackPicker: () -> Unit
 ) {
     val targetPkg = slot.targetPackage
+    if (slot.type == DockSlotType.Music && AutomotivePackageResolver.isInternalPlayerPackage(targetPkg)) {
+        onOpenPlayer()
+        return
+    }
+
     if (slot.type == DockSlotType.Settings && (targetPkg == null || targetPkg == "com.android.settings")) {
         try {
             val intent = Intent(Settings.ACTION_SETTINGS).apply {

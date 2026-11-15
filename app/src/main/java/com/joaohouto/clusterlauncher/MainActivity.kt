@@ -1,14 +1,27 @@
 package com.joaohouto.clusterlauncher
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
+import android.util.Log
+import android.view.KeyEvent
 import android.view.Window
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,10 +30,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,32 +48,42 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import com.joaohouto.clusterlauncher.data.local.AppDatabase
+import com.joaohouto.clusterlauncher.data.local.PreferencesDataStore
 import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
 import com.joaohouto.clusterlauncher.data.receiver.UsbStateReceiver
+import com.joaohouto.clusterlauncher.data.repository.MusicRepository
+import com.joaohouto.clusterlauncher.data.update.AppUpdateManager
 import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.media.NotificationListenerHelper
+import com.joaohouto.clusterlauncher.player.PlayerController
 import com.joaohouto.clusterlauncher.ui.cockpit.CockpitScreen
-import com.joaohouto.clusterlauncher.ui.cockpit.QuickActionsHubScreen
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.BluetoothAppPickerModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.CarBrandPickerModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.FullScreenMapModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.LauncherSettingsModal
+import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.SettingsTab
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.SlotAppPickerModal
 import com.joaohouto.clusterlauncher.ui.drawer.AppDrawerViewModel
 import com.joaohouto.clusterlauncher.ui.drawer.AppSlideScreen
+import com.joaohouto.clusterlauncher.ui.player.HomeViewModel
+import com.joaohouto.clusterlauncher.ui.player.IntegratedPlayerScreen
+import com.joaohouto.clusterlauncher.ui.player.PlayerViewModel
 import com.joaohouto.clusterlauncher.ui.theme.ClusterLauncherTheme
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.getAccentThemeById
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Suppress("DEPRECATION")
@@ -70,18 +93,28 @@ fun applyImmersiveMode(window: Window, isFullScreen: Boolean) {
         insetsController.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
     } else {
         insetsController.show(WindowInsetsCompat.Type.systemBars())
-        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
     }
 }
 
 class MainActivity : ComponentActivity() {
 
     private val appDrawerViewModel: AppDrawerViewModel by viewModels()
+    private val homeViewModel: HomeViewModel by viewModels()
+    private val playerViewModel: PlayerViewModel by viewModels()
+
     private var scrollToCockpitTrigger by mutableIntStateOf(0)
     private var isFullScreenMapOpen by mutableStateOf(false)
+    private var isPlayerOpen by mutableStateOf(false)
+
+    private val requestAudioPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        checkManageExternalStorageAndScan()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,24 +132,117 @@ class MainActivity : ComponentActivity() {
         com.joaohouto.clusterlauncher.ui.cockpit.components.OsmdroidMapHelper.initOsmdroid(this)
         com.joaohouto.clusterlauncher.ui.cockpit.components.MapLibreMapHelper.initMapLibre(this)
 
+        MediaManager.init(this)
+        PlayerController.getInstance(this).initialize()
+        checkAndRequestAudioStoragePermissions()
+
+        val preferencesDataStore = PreferencesDataStore.getInstance(this)
+
         setContent {
             val accentThemeId by appDrawerViewModel.accentThemeId.collectAsState()
             val currentAccent = remember(accentThemeId) { getAccentThemeById(accentThemeId) }
             val fullScreenMode by appDrawerViewModel.fullScreenMode.collectAsState()
+            val isKeepScreenOn by preferencesDataStore.keepScreenOnFlow.collectAsState(initial = true)
+            val isShowLyrics by preferencesDataStore.showLyricsFlow.collectAsState(initial = true)
+            val autoCheckUpdates by preferencesDataStore.autoCheckUpdatesFlow.collectAsState(initial = true)
+
+            LaunchedEffect(autoCheckUpdates) {
+                if (autoCheckUpdates) {
+                    AppUpdateManager.checkForUpdates(this@MainActivity, isManual = false)
+                }
+            }
 
             LaunchedEffect(fullScreenMode, isFullScreenMapOpen) {
                 applyImmersiveMode(window, fullScreenMode || isFullScreenMapOpen)
             }
 
+            LaunchedEffect(isKeepScreenOn) {
+                if (isKeepScreenOn) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+            }
+
             ClusterLauncherTheme(accentTheme = currentAccent) {
                 LauncherMainContent(
                     viewModel = appDrawerViewModel,
+                    homeViewModel = homeViewModel,
+                    playerViewModel = playerViewModel,
+                    showLyrics = isShowLyrics,
                     scrollToCockpitTrigger = scrollToCockpitTrigger,
                     fullScreenMode = fullScreenMode,
                     showFullScreenMap = isFullScreenMapOpen,
                     onOpenFullScreenMap = { isFullScreenMapOpen = true },
-                    onCloseFullScreenMap = { isFullScreenMapOpen = false }
+                    onCloseFullScreenMap = { isFullScreenMapOpen = false },
+                    showPlayer = isPlayerOpen,
+                    onOpenPlayer = { isPlayerOpen = true },
+                    onClosePlayer = { isPlayerOpen = false }
                 )
+            }
+        }
+    }
+
+    private fun checkAndRequestAudioStoragePermissions() {
+        val permissions = mutableListOf<String>()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        }
+
+        if (permissions.isNotEmpty()) {
+            requestAudioPermissionsLauncher.launch(permissions.toTypedArray())
+        } else {
+            checkManageExternalStorageAndScan()
+        }
+    }
+
+    private fun checkManageExternalStorageAndScan() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    try {
+                        val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                        startActivity(intent)
+                    } catch (e2: Exception) {
+                        Log.w("MainActivity", "Cannot launch MANAGE_ALL_FILES_ACCESS_PERMISSION", e2)
+                    }
+                }
+            }
+        }
+        triggerScanIfEmpty()
+    }
+
+    private fun triggerScanIfEmpty() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getInstance(this@MainActivity)
+                if (db.folderDao().getFolderCount() == 0) {
+                    Log.d("MainActivity", "Database empty. Triggering initial media scan.")
+                    MusicRepository.getInstance(this@MainActivity).triggerScan(clearOld = false)
+                }
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Error checking folder count", e)
             }
         }
     }
@@ -132,12 +258,14 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         val hasPermission = NotificationListenerHelper.isNotificationListenerEnabled(this)
         MediaManager.setPermissionGranted(hasPermission)
+        AppUpdateManager.onActivityResumed(this)
         appDrawerViewModel.loadApps()
         com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper.updateDefaultLauncherState(this)
         com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.checkPermission(this)
         if (com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.hasPermission.value) {
             com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.startListening(this)
         }
+        triggerScanIfEmpty()
     }
 
     override fun onPause() {
@@ -148,9 +276,34 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // Whenever Home intent or new intent is received, scroll back to cockpit
         isFullScreenMapOpen = false
+        isPlayerOpen = false
         scrollToCockpitTrigger++
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_MEDIA_NEXT,
+                KeyEvent.KEYCODE_CHANNEL_UP -> {
+                    MediaManager.skipToNext()
+                    return true
+                }
+                KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+                KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                    MediaManager.skipToPrevious()
+                    return true
+                }
+                KeyEvent.KEYCODE_MEDIA_PLAY,
+                KeyEvent.KEYCODE_MEDIA_PAUSE,
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                KeyEvent.KEYCODE_HEADSETHOOK -> {
+                    MediaManager.playPause()
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 }
 
@@ -158,11 +311,17 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun LauncherMainContent(
     viewModel: AppDrawerViewModel,
+    homeViewModel: HomeViewModel,
+    playerViewModel: PlayerViewModel,
+    showLyrics: Boolean,
     scrollToCockpitTrigger: Int,
     fullScreenMode: Boolean = false,
     showFullScreenMap: Boolean = false,
     onOpenFullScreenMap: () -> Unit = {},
-    onCloseFullScreenMap: () -> Unit = {}
+    onCloseFullScreenMap: () -> Unit = {},
+    showPlayer: Boolean = false,
+    onOpenPlayer: () -> Unit = {},
+    onClosePlayer: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -197,6 +356,7 @@ private fun LauncherMainContent(
     var activeSlotForPicker by remember { mutableStateOf<DockSlot?>(null) }
     var showBrandPicker by remember { mutableStateOf(false) }
     var showSettingsModal by remember { mutableStateOf(false) }
+    var settingsInitialTab by remember { mutableStateOf(SettingsTab.MAPS) }
     var showBluetoothPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(isAndroidAuto) {
@@ -207,7 +367,6 @@ private fun LauncherMainContent(
         }
     }
 
-    // React to Home button or onNewIntent
     LaunchedEffect(scrollToCockpitTrigger) {
         if (scrollToCockpitTrigger > 0) {
             isAndroidAutoDrawerOpen = false
@@ -217,8 +376,7 @@ private fun LauncherMainContent(
         }
     }
 
-    // BackHandler: if on full screen map, close it; if Android Auto drawer is open, close it; if on Drawer, return to Cockpit
-    BackHandler(enabled = showFullScreenMap || isAndroidAutoDrawerOpen || pagerState.currentPage != 0) {
+    BackHandler(enabled = !showPlayer && (showFullScreenMap || isAndroidAutoDrawerOpen || pagerState.currentPage != 0)) {
         when {
             showFullScreenMap -> onCloseFullScreenMap()
             isAndroidAutoDrawerOpen -> isAndroidAutoDrawerOpen = false
@@ -238,7 +396,7 @@ private fun LauncherMainContent(
     ) {
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = !showFullScreenMap,
+            userScrollEnabled = !showFullScreenMap && !showPlayer,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
@@ -259,8 +417,20 @@ private fun LauncherMainContent(
                         },
                         onBluetoothClick = { viewModel.launchBluetooth(context) },
                         onBluetoothLongClick = { showBluetoothPicker = true },
-                        onSettingsClick = { showSettingsModal = true },
+                        onSettingsClick = {
+                            settingsInitialTab = if (AppUpdateManager.hasPendingUpdate) {
+                                SettingsTab.SYSTEM
+                            } else {
+                                SettingsTab.MAPS
+                            }
+                            showSettingsModal = true
+                        },
+                        onUpdateBadgeClick = {
+                            settingsInitialTab = SettingsTab.SYSTEM
+                            showSettingsModal = true
+                        },
                         onOpenFullScreenMap = onOpenFullScreenMap,
+                        onOpenPlayer = onOpenPlayer,
                         layoutPreset = cockpitLayoutPreset,
                         showMapOnHome = showMapOnHome,
                         isMapDarkMode = mapDarkMode,
@@ -268,7 +438,7 @@ private fun LauncherMainContent(
                         mapFollowHeading = mapFollowHeading,
                         onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
                         map3dPerspective = map3dPerspective,
-                        isMapPaused = showFullScreenMap || isAndroidAutoDrawerOpen,
+                        isMapPaused = showFullScreenMap || showPlayer || isAndroidAutoDrawerOpen,
                         fullScreenMode = fullScreenMode,
                         mediaCardPosition = mediaCardPosition,
                         swapCockpitColumns = swapCockpitColumns,
@@ -291,9 +461,9 @@ private fun LauncherMainContent(
             }
         }
 
-        // Slide pagination indicator dots (only visible when outside Cockpit)
+        // Slide pagination indicator dots (only visible when outside Cockpit and Player)
         val totalSecondaryPages = pageCount - 1
-        if (pagerState.currentPage > 0 && totalSecondaryPages > 1) {
+        if (!showPlayer && pagerState.currentPage > 0 && totalSecondaryPages > 1) {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -314,6 +484,25 @@ private fun LauncherMainContent(
                     )
                 }
             }
+        }
+
+        // Integrated Full-Screen Player Overlay
+        AnimatedVisibility(
+            visible = showPlayer,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            IntegratedPlayerScreen(
+                homeViewModel = homeViewModel,
+                playerViewModel = playerViewModel,
+                showLyrics = showLyrics,
+                onCloseToCockpit = onClosePlayer,
+                onOpenSettings = {
+                    settingsInitialTab = SettingsTab.AUDIO
+                    showSettingsModal = true
+                }
+            )
         }
 
         activeSlotForPicker?.let { slot ->
@@ -342,6 +531,7 @@ private fun LauncherMainContent(
         if (showSettingsModal) {
             LauncherSettingsModal(
                 selectedBrand = selectedCarBrand,
+                initialTab = settingsInitialTab,
                 selectedAccentId = accentThemeId,
                 onSelectAccent = { viewModel.selectAccentTheme(it) },
                 selectedLayoutPreset = cockpitLayoutPreset,

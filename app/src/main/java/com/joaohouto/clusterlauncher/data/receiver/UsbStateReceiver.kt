@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Environment
 import android.os.storage.StorageManager
+import com.joaohouto.clusterlauncher.data.repository.MusicRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,9 +14,13 @@ class UsbStateReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_MEDIA_MOUNTED -> _isUsbConnected.value = true
+            Intent.ACTION_MEDIA_MOUNTED -> {
+                _isUsbConnected.value = true
+                MusicRepository.getInstance(context).triggerScan(clearOld = false)
+            }
             Intent.ACTION_MEDIA_UNMOUNTED, Intent.ACTION_MEDIA_EJECT, Intent.ACTION_MEDIA_REMOVED -> {
                 _isUsbConnected.value = checkUsbStorage(context)
+                MusicRepository.getInstance(context).triggerScan(clearOld = true)
             }
         }
     }

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BluetoothConnected
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
+import com.joaohouto.clusterlauncher.data.update.AppUpdateManager
+import com.joaohouto.clusterlauncher.data.update.UpdateStatus
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
@@ -51,9 +54,16 @@ fun SystemStatusRow(
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(if (isLarge) 12.dp else 10.dp, Alignment.CenterHorizontally),
     onBluetoothClick: () -> Unit = {},
     onBluetoothLongClick: (() -> Unit)? = null,
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onUpdateClick: () -> Unit = onSettingsClick
 ) {
     val isBluetoothConnected by BluetoothStateReceiver.isBluetoothConnected.collectAsState()
+    val updateStatus by AppUpdateManager.updateStatus.collectAsState()
+    val availableTag = when (val s = updateStatus) {
+        is UpdateStatus.UpdateAvailable -> s.release.tagName
+        is UpdateStatus.ReadyToInstall -> s.release.tagName
+        else -> null
+    }
 
     FlowRow(
         modifier = modifier,
@@ -74,6 +84,14 @@ fun SystemStatusRow(
             isLarge = isLarge,
             onClick = onSettingsClick
         )
+        if (availableTag != null) {
+            ActionBadge(
+                icon = Icons.Rounded.SystemUpdateAlt,
+                label = stringResource(R.string.update_badge_available, availableTag),
+                isLarge = isLarge,
+                onClick = onUpdateClick
+            )
+        }
     }
 }
 

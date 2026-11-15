@@ -64,6 +64,7 @@ fun QuickActionsHubScreen(
     onBluetoothClick: () -> Unit,
     onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
+    onOpenPlayer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -86,7 +87,7 @@ fun QuickActionsHubScreen(
         ) {
             dockSlots.forEach { slot ->
                 MetallicButton(
-                    onClick = { launchSlotApp(context, slot) { onSlotLongClick(slot) } },
+                    onClick = { launchSlotApp(context, slot, onOpenPlayer = onOpenPlayer) { onSlotLongClick(slot) } },
                     onLongClick = { onSlotLongClick(slot) },
                     icon = slot.icon,
                     text = stringResource(slot.titleRes),

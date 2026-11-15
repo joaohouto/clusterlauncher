@@ -46,7 +46,9 @@ fun CockpitScreen(
     onBluetoothClick: () -> Unit = {},
     onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {},
+    onUpdateBadgeClick: () -> Unit = onSettingsClick,
     onOpenFullScreenMap: () -> Unit = {},
+    onOpenPlayer: () -> Unit = {},
     layoutPreset: CockpitLayoutPreset = CockpitLayoutPreset.CLASSIC,
     showMapOnHome: Boolean = true,
     isMapDarkMode: Boolean = false,
@@ -90,7 +92,8 @@ fun CockpitScreen(
                 isDrawerOpen = isAndroidAutoDrawerOpen,
                 onBluetoothClick = onBluetoothClick,
                 onBluetoothLongClick = onBluetoothLongClick,
-                onSettingsClick = onSettingsClick
+                onSettingsClick = onSettingsClick,
+                onOpenPlayer = onOpenPlayer
             )
 
             Spacer(modifier = Modifier.width(14.dp))
@@ -130,12 +133,14 @@ fun CockpitScreen(
                                     )
                                     Spacer(modifier = Modifier.width(14.dp))
                                     FullBleedMediaCard(
+                                        onOpenPlayer = onOpenPlayer,
                                         modifier = Modifier
                                             .weight(0.40f)
                                             .fillMaxHeight()
                                     )
                                 } else {
                                     FullBleedMediaCard(
+                                        onOpenPlayer = onOpenPlayer,
                                         modifier = Modifier
                                             .weight(0.40f)
                                             .fillMaxHeight()
@@ -165,6 +170,7 @@ fun CockpitScreen(
                             }
                             else -> {
                                 FullBleedMediaCard(
+                                    onOpenPlayer = onOpenPlayer,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
@@ -225,13 +231,15 @@ fun CockpitScreen(
                                 isLarge = true,
                                 onBluetoothClick = onBluetoothClick,
                                 onBluetoothLongClick = onBluetoothLongClick,
-                                onSettingsClick = onSettingsClick
+                                onSettingsClick = onSettingsClick,
+                                onUpdateClick = onUpdateBadgeClick
                             )
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
 
                         UniversalMediaCard(
+                            onOpenPlayer = onOpenPlayer,
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
@@ -252,7 +260,8 @@ fun CockpitScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                             onBluetoothClick = onBluetoothClick,
                             onBluetoothLongClick = onBluetoothLongClick,
-                            onSettingsClick = onSettingsClick
+                            onSettingsClick = onSettingsClick,
+                            onUpdateClick = onUpdateBadgeClick
                         )
                     }
                 }
@@ -283,6 +292,7 @@ fun CockpitScreen(
                         }
 
                         UniversalMediaCard(
+                            onOpenPlayer = onOpenPlayer,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -308,7 +318,8 @@ fun CockpitScreen(
         // Bottom Section: Fixed 5-slot Quick Dock
         QuickDockBar(
             slots = dockSlots,
-            onSlotLongClick = onSlotLongClick
+            onSlotLongClick = onSlotLongClick,
+            onOpenPlayer = onOpenPlayer
         )
     }
 }

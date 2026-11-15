@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import coil.disk.DiskCache
 import coil.memory.MemoryCache
 
 class ClusterLauncherApplication : Application(), ImageLoaderFactory {
@@ -15,6 +16,13 @@ class ClusterLauncherApplication : Application(), ImageLoaderFactory {
                     .maxSizePercent(0.15)
                     .build()
             }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(32L * 1024 * 1024)
+                    .build()
+            }
+            .respectCacheHeaders(false)
             .crossfade(true)
             .build()
     }

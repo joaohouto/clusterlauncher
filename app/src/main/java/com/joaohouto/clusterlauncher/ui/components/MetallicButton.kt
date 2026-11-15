@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -62,6 +63,7 @@ fun MetallicButton(
     iconSize: Dp = 26.dp,
     textSize: TextUnit = 14.sp,
     verticalLayout: Boolean = false,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     contentDescription: String? = null
 ) {
     val accent = LocalClusterAccent.current
@@ -113,8 +115,8 @@ fun MetallicButton(
         Box(
             modifier = Modifier
                 .background(backgroundBrush)
-                .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .defaultMinSize(minWidth = minSize, minHeight = minSize)
+                .padding(contentPadding),
             contentAlignment = Alignment.Center
         ) {
             if (verticalLayout) {

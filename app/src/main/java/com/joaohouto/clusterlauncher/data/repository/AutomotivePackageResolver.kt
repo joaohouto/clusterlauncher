@@ -11,11 +11,17 @@ import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
 
 object AutomotivePackageResolver {
+    const val INTERNAL_PLAYER_PACKAGE = "internal_cluster_player"
+
     val KNOWN_MUSIC_PACKAGES = listOf(
-        "com.joaohouto.clusterplayer",
+        INTERNAL_PLAYER_PACKAGE,
         "com.spotify.music",
         "com.google.android.music"
     )
+
+    fun isInternalPlayerPackage(pkg: String?): Boolean {
+        return pkg.isNullOrEmpty() || pkg == INTERNAL_PLAYER_PACKAGE || pkg == "com.joaohouto.clusterplayer"
+    }
 
     val KNOWN_RADIO_PACKAGES = listOf(
         "com.syu.radio",
@@ -86,6 +92,7 @@ object AutomotivePackageResolver {
     )
 
     fun resolveDefaultPackage(context: Context, slotType: DockSlotType): String? {
+        if (slotType == DockSlotType.Music) return INTERNAL_PLAYER_PACKAGE
         val pm = context.packageManager
         val candidates = when (slotType) {
             DockSlotType.ZLink -> KNOWN_ZLINK_PACKAGES

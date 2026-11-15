@@ -17,3 +17,7 @@ val NeedleRedGlow = Color(0x33E61924)
 val TextPrimary = Color(0xFFFFFFFF)
 val TextSecondary = Color(0xFF9A9DA6)
 val TextDisabled = Color(0xFF555963)
+
+// Progress Bar
+val TrackRail = Color(0xFF262930)
+val TrackFill = Color(0xFFE61924)

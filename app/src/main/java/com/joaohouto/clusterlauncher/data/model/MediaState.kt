@@ -13,5 +13,7 @@ data class MediaState(
     val durationMs: Long = 0L,
     val packageName: String? = null,
     val hasActiveSession: Boolean = false,
-    val isPermissionGranted: Boolean = true
+    val isPermissionGranted: Boolean = true,
+    val lyricsLine: String? = null,
+    val isExternalSession: Boolean = false
 )

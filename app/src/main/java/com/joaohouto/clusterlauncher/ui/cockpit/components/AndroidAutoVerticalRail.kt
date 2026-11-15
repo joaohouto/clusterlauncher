@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
+import com.joaohouto.clusterlauncher.data.update.AppUpdateManager
+import com.joaohouto.clusterlauncher.data.update.UpdateStatus
 import com.joaohouto.clusterlauncher.ui.components.MetallicButton
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
@@ -77,11 +79,14 @@ fun AndroidAutoVerticalRail(
     onBluetoothClick: () -> Unit = {},
     onBluetoothLongClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit = {},
+    onOpenPlayer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val accent = LocalClusterAccent.current.primary
     val isBluetoothConnected by BluetoothStateReceiver.isBluetoothConnected.collectAsState()
+    val updateStatus by AppUpdateManager.updateStatus.collectAsState()
+    val hasUpdate = updateStatus is UpdateStatus.UpdateAvailable || updateStatus is UpdateStatus.ReadyToInstall
 
     // Relógio digital compacto
     var currentTimeString by remember { mutableStateOf("") }
@@ -144,7 +149,7 @@ fun AndroidAutoVerticalRail(
         ) {
             dockSlots.forEach { slot ->
                 MetallicButton(
-                    onClick = { launchSlotApp(context, slot) { onSlotLongClick(slot) } },
+                    onClick = { launchSlotApp(context, slot, onOpenPlayer = onOpenPlayer) { onSlotLongClick(slot) } },
                     onLongClick = { onSlotLongClick(slot) },
                     icon = slot.icon,
                     text = null, // Sem texto
@@ -185,22 +190,32 @@ fun AndroidAutoVerticalRail(
                 )
             }
 
-            // Botão Configurações (apenas ícone)
+            // Botão Configurações (apenas ícone, com indicador de atualização quando disponível)
             Box(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(SurfaceCard)
-                    .border(1.dp, SurfaceCardBorder, CircleShape)
+                    .background(if (hasUpdate) accent.copy(alpha = 0.16f) else SurfaceCard)
+                    .border(1.dp, if (hasUpdate) accent else SurfaceCardBorder, CircleShape)
                     .clickable(onClick = onSettingsClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Settings,
                     contentDescription = stringResource(R.string.settings),
-                    tint = TextSecondary,
+                    tint = if (hasUpdate) accent else TextSecondary,
                     modifier = Modifier.size(28.dp)
                 )
+                if (hasUpdate) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 8.dp, end = 8.dp)
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(accent)
+                    )
+                }
             }
 
             // Relógio compacto no rodapé

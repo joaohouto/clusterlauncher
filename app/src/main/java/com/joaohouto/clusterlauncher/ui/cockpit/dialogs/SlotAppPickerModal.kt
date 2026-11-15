@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -42,6 +43,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.model.AppItem
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
+import com.joaohouto.clusterlauncher.data.repository.AutomotivePackageResolver
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
@@ -104,6 +106,59 @@ fun SlotAppPickerModal(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                if (slotType == DockSlotType.Music) {
+                    val accent = LocalClusterAccent.current.primary
+                    val builtInLabel = stringResource(R.string.integrated_player_option)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(accent.copy(alpha = 0.14f))
+                            .border(1.5.dp, accent, RoundedCornerShape(12.dp))
+                            .clickable {
+                                onAppSelected(
+                                    AppItem(
+                                        label = builtInLabel,
+                                        packageName = AutomotivePackageResolver.INTERNAL_PLAYER_PACKAGE,
+                                        icon = null
+                                    )
+                                )
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(accent.copy(alpha = 0.25f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MusicNote,
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = builtInLabel,
+                                color = TextPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = stringResource(R.string.integrated_player_subtitle),
+                                color = TextSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 // Grid of apps
                 LazyVerticalGrid(

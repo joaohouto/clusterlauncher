@@ -13,31 +13,91 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.LruCache
-import com.joaohouto.clusterlauncher.data.model.DockSlotType
+import com.joaohouto.clusterlauncher.data.local.PreferencesDataStore
 import com.joaohouto.clusterlauncher.data.model.MediaState
 import com.joaohouto.clusterlauncher.data.repository.AutomotivePackageResolver
+import com.joaohouto.clusterlauncher.player.PlayerController
+import com.joaohouto.clusterlauncher.ui.components.AudioArtExtractor
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 object MediaManager {
 
-    private const val CLUSTER_PLAYER_PACKAGE = "com.joaohouto.clusterplayer"
     private const val EXTRA_HIGH_RES_ART = "cluster_high_res_art"
     private const val EXTRA_HIGH_RES_MEDIA_ID = "cluster_high_res_media_id"
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     private val _mediaState = MutableStateFlow(MediaState())
     val mediaState: StateFlow<MediaState> = _mediaState.asStateFlow()
 
+    private var appContext: Context? = null
+    private var playerController: PlayerController? = null
     private var activeController: MediaController? = null
     private val highResBitmapCache = object : LruCache<String, Bitmap>(12) {}
+    private var showLyricsInPlayer: Boolean = true
+
+    fun init(context: Context) {
+        if (appContext != null) return
+        val ctx = context.applicationContext
+        appContext = ctx
+        val pc = PlayerController.getInstance(ctx)
+        playerController = pc
+        val prefs = PreferencesDataStore.getInstance(ctx)
+
+        scope.launch {
+            prefs.showLyricsFlow.collect { enabled ->
+                showLyricsInPlayer = enabled
+                syncState()
+            }
+        }
+
+        scope.launch {
+            pc.uiState.collect { state ->
+                val track = state.currentTrack
+                if (track != null) {
+                    val artKey = track.path.ifEmpty { track.uri }
+                    if (artKey.isNotEmpty() && AudioArtExtractor.getCachedBitmap(artKey) == null) {
+                        launch(Dispatchers.IO) {
+                            val bmp = AudioArtExtractor.preloadArtBitmap(ctx, artKey)
+                            if (bmp != null) {
+                                withContext(Dispatchers.Main) { syncState() }
+                            }
+                        }
+                    }
+                }
+                syncState()
+            }
+        }
+
+        scope.launch {
+            pc.currentPosition.collect { posMs ->
+                val current = _mediaState.value
+                if (!current.isExternalSession && current.hasActiveSession) {
+                    val activeLine = if (showLyricsInPlayer) {
+                        pc.uiState.value.currentLyricsLine
+                    } else null
+                    _mediaState.value = current.copy(
+                        positionMs = posMs,
+                        lyricsLine = activeLine
+                    )
+                }
+            }
+        }
+    }
 
     private val progressTicker = object : Runnable {
         override fun run() {
             val controller = activeController
             val pbState = controller?.playbackState
-            if (controller != null && pbState?.state == PlaybackState.STATE_PLAYING) {
+            if (_mediaState.value.isExternalSession && controller != null && pbState?.state == PlaybackState.STATE_PLAYING) {
                 val duration = _mediaState.value.durationMs.takeIf { it > 0L }
                     ?: (controller.metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)?.takeIf { it > 0L } ?: 0L)
                 val pos = calculateCurrentPositionMs(pbState, duration)
@@ -75,10 +135,12 @@ object MediaManager {
 
     fun onSessionsChanged(controllers: List<MediaController>) {
         mainHandler.post {
-            // Pick currently playing controller first, or first with metadata, or first non-null
-            val chosen = controllers.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-                ?: controllers.firstOrNull { it.metadata != null }
-                ?: controllers.firstOrNull()
+            val ownPkg = appContext?.packageName ?: "com.joaohouto.clusterlauncher"
+            val externalControllers = controllers.filter { it.packageName != ownPkg }
+
+            val chosen = externalControllers.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                ?: externalControllers.firstOrNull { it.metadata != null }
+                ?: externalControllers.firstOrNull()
 
             if (chosen?.sessionToken != activeController?.sessionToken) {
                 activeController?.unregisterCallback(controllerCallback)
@@ -128,136 +190,159 @@ object MediaManager {
 
     private fun syncState() {
         mainHandler.removeCallbacks(progressTicker)
-        val controller = activeController
-        if (controller == null) {
+
+        val internalState = playerController?.uiState?.value
+        val internalTrack = internalState?.currentTrack
+        val internalPlaying = internalState?.isPlaying == true
+
+        val extController = activeController
+        val extPlaying = extController?.playbackState?.state == PlaybackState.STATE_PLAYING
+
+        // Prefer internal player when it is playing, or when no external session is actively playing
+        val useExternal = !internalPlaying && extController != null && (extPlaying || internalTrack == null)
+
+        if (useExternal && extController != null) {
+            val metadata = extController.metadata
+            val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
+                ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
+                ?: ""
+
+            val artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
+                ?: metadata?.getString(MediaMetadata.METADATA_KEY_AUTHOR)
+                ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)
+                ?: ""
+
+            val description = metadata?.description
+
+            val highResArt = resolveHighResBitmap(extController)
+            val artBitmap = highResArt
+                ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+                ?: description?.iconBitmap
+
+            val artUriStr = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+                ?: metadata?.getString(MediaMetadata.METADATA_KEY_ART_URI)
+                ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
+            val artUri = (artUriStr?.let { runCatching { Uri.parse(it) }.getOrNull() })
+                ?: description?.iconUri
+
+            val rawDuration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+            val durationMs = if (rawDuration > 0L) rawDuration else 0L
+
+            val pbState = extController.playbackState
+            val isPlaying = pbState?.state == PlaybackState.STATE_PLAYING
+            val positionMs = if (title.isBlank() && !isPlaying) 0L else calculateCurrentPositionMs(pbState, durationMs)
+
             _mediaState.value = _mediaState.value.copy(
-                title = "",
-                artist = "",
-                albumArtBitmap = null,
+                title = title,
+                artist = artist,
+                albumArtBitmap = artBitmap,
+                albumArtUri = artUri,
+                isPlaying = isPlaying,
+                positionMs = positionMs,
+                durationMs = durationMs,
+                packageName = extController.packageName,
+                hasActiveSession = title.isNotBlank() || isPlaying,
+                lyricsLine = null,
+                isExternalSession = true
+            )
+
+            if (isPlaying) {
+                mainHandler.postDelayed(progressTicker, 500L)
+            }
+            return
+        }
+
+        if (internalTrack != null && internalState != null) {
+            val posMs = playerController?.currentPosition?.value ?: 0L
+            val durationMs = internalState.durationMs.takeIf { it > 0L } ?: internalTrack.durationMs
+            val artKey = internalTrack.path.ifEmpty { internalTrack.uri }
+            val artBitmap = AudioArtExtractor.getCachedBitmap(artKey)
+            val activeLine = if (showLyricsInPlayer) internalState.currentLyricsLine else null
+
+            _mediaState.value = _mediaState.value.copy(
+                title = internalTrack.title,
+                artist = internalTrack.artist,
+                albumArtBitmap = artBitmap,
                 albumArtUri = null,
-                isPlaying = false,
-                positionMs = 0L,
-                durationMs = 0L,
-                packageName = null,
-                hasActiveSession = false
+                isPlaying = internalState.isPlaying,
+                positionMs = posMs,
+                durationMs = durationMs,
+                packageName = appContext?.packageName,
+                hasActiveSession = true,
+                lyricsLine = activeLine,
+                isExternalSession = false
             )
             return
         }
 
-        val metadata = controller.metadata
-        val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
-            ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-            ?: ""
-
-        val artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
-            ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
-            ?: metadata?.getString(MediaMetadata.METADATA_KEY_AUTHOR)
-            ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)
-            ?: ""
-
-        val description = metadata?.description
-
-        val highResArt = resolveHighResBitmap(controller)
-        val artBitmap = highResArt
-            ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
-            ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-            ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-            ?: description?.iconBitmap
-
-        val artUriStr = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
-            ?: metadata?.getString(MediaMetadata.METADATA_KEY_ART_URI)
-            ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
-        val artUri = (artUriStr?.let { runCatching { Uri.parse(it) }.getOrNull() })
-            ?: description?.iconUri
-
-        val rawDuration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
-        val durationMs = if (rawDuration > 0L) rawDuration else 0L
-
-        val pbState = controller.playbackState
-        val isPlaying = pbState?.state == PlaybackState.STATE_PLAYING
-        val positionMs = if (title.isBlank() && !isPlaying) 0L else calculateCurrentPositionMs(pbState, durationMs)
-
         _mediaState.value = _mediaState.value.copy(
-            title = title,
-            artist = artist,
-            albumArtBitmap = artBitmap,
-            albumArtUri = artUri,
-            isPlaying = isPlaying,
-            positionMs = positionMs,
-            durationMs = durationMs,
-            packageName = controller.packageName,
-            hasActiveSession = true
+            title = "",
+            artist = "",
+            albumArtBitmap = null,
+            albumArtUri = null,
+            isPlaying = false,
+            positionMs = 0L,
+            durationMs = 0L,
+            packageName = null,
+            hasActiveSession = false,
+            lyricsLine = null,
+            isExternalSession = false
         )
-
-        if (isPlaying) {
-            mainHandler.postDelayed(progressTicker, 500L)
-        }
     }
 
     fun playPause() {
-        val controller = activeController ?: return
-        val isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING
-        if (isPlaying) {
-            controller.transportControls.pause()
+        if (_mediaState.value.isExternalSession) {
+            val controller = activeController ?: return
+            val isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING
+            if (isPlaying) {
+                controller.transportControls.pause()
+            } else {
+                controller.transportControls.play()
+            }
         } else {
-            controller.transportControls.play()
+            playerController?.playPause()
         }
     }
 
     fun skipToPrevious() {
-        activeController?.transportControls?.skipToPrevious()
+        if (_mediaState.value.isExternalSession) {
+            activeController?.transportControls?.skipToPrevious()
+        } else {
+            playerController?.previous()
+        }
     }
 
     fun skipToNext() {
-        activeController?.transportControls?.skipToNext()
+        if (_mediaState.value.isExternalSession) {
+            activeController?.transportControls?.skipToNext()
+        } else {
+            playerController?.next()
+        }
     }
 
-    fun openPlayer(context: Context) {
+    fun openExternalPlayerIfActive(context: Context): Boolean {
+        if (!_mediaState.value.isExternalSession) return false
+        val controller = activeController ?: return false
         val pm = context.packageManager
-
-        // 1. Por padrão, abre o ClusterPlayer se estiver instalado
-        if (AutomotivePackageResolver.isPackageInstalled(pm, CLUSTER_PLAYER_PACKAGE)) {
-            val clusterPlayerIntent = AutomotivePackageResolver.getLaunchIntent(pm, CLUSTER_PLAYER_PACKAGE)
-            if (clusterPlayerIntent != null) {
-                try {
-                    clusterPlayerIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(clusterPlayerIntent)
-                    return
-                } catch (_: Exception) {}
-            }
-        }
-
-        // 2. Fallback: se houver uma MediaSession ativa de outro app, abre o app da sessão
-        val controller = activeController
-        if (controller != null) {
-            try {
-                controller.sessionActivity?.send()
-                return
-            } catch (_: Exception) {
-                val pkg = controller.packageName
-                if (!pkg.isNullOrEmpty()) {
-                    val intent = AutomotivePackageResolver.getLaunchIntent(pm, pkg)
-                    if (intent != null) {
-                        try {
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
-                            return
-                        } catch (_: Exception) {}
-                    }
+        try {
+            controller.sessionActivity?.send()
+            return true
+        } catch (_: Exception) {
+            val pkg = controller.packageName
+            if (!pkg.isNullOrEmpty()) {
+                val intent = AutomotivePackageResolver.getLaunchIntent(pm, pkg)
+                if (intent != null) {
+                    try {
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                        return true
+                    } catch (_: Exception) {}
                 }
             }
         }
-
-        // 3. Último fallback: resolve o player de música padrão instalado no sistema
-        val defaultMusicPkg = AutomotivePackageResolver.resolveDefaultPackage(context, DockSlotType.Music)
-        if (!defaultMusicPkg.isNullOrEmpty()) {
-            val fallbackIntent = AutomotivePackageResolver.getLaunchIntent(pm, defaultMusicPkg)
-            if (fallbackIntent != null) {
-                try {
-                    fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(fallbackIntent)
-                } catch (_: Exception) {}
-            }
-        }
+        return false
     }
 }
