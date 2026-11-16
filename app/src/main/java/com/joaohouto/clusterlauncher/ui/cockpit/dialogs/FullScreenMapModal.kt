@@ -92,7 +92,7 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun FullScreenMapModal(
-    isDarkMode: Boolean = false,
+    isDarkMode: Boolean = true,
     initialDarkMode: Boolean = isDarkMode,
     followHeading: Boolean = true,
     is3dPerspective: Boolean = true,

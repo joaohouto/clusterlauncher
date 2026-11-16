@@ -79,7 +79,7 @@ private val CardShape = RoundedCornerShape(16.dp)
 fun OfflineMapCard(
     modifier: Modifier = Modifier,
     heightDp: Int? = null,
-    isDarkMode: Boolean = false,
+    isDarkMode: Boolean = true,
     followHeading: Boolean = true,
     is3dPerspective: Boolean = true,
     isMapPaused: Boolean = false,

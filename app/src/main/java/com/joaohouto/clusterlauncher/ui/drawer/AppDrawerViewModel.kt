@@ -63,7 +63,7 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
+            initialValue = true
         )
 
     fun setMapDarkMode(isDark: Boolean) {
@@ -200,7 +200,7 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = 100
+            initialValue = 120
         )
 
     fun setUiScalePercent(percent: Int) {

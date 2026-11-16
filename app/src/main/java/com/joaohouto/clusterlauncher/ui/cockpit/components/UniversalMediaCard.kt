@@ -59,7 +59,7 @@ private val CardShape = RoundedCornerShape(16.dp)
 /**
  * Card vertical de mídia em tela cheia (estilo Android Auto Coolwalk),
  * com capa do álbum preenchendo todo o fundo, gradiente de contraste,
- * botão "X" para fechar/ocultar no canto superior direito e controles na base.
+ * botão "X" para fechar/encerrar no canto superior direito e controles na base.
  */
 @Composable
 fun FullBleedMediaCard(
@@ -68,7 +68,8 @@ fun FullBleedMediaCard(
     modifier: Modifier = Modifier
 ) {
     val mediaState by MediaManager.mediaState.collectAsState()
-    val accent = LocalClusterAccent.current.primary
+    val accentTheme = LocalClusterAccent.current
+    val accent = accentTheme.primary
 
     Surface(
         modifier = modifier
@@ -114,22 +115,23 @@ fun FullBleedMediaCard(
             }
 
             // Camada 2: Gradiente vertical estilo Android Auto para legibilidade perfeita
+            val overlayGradient = remember {
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.0f to Color(0x28000000),
+                        0.42f to Color(0x660A0C10),
+                        0.72f to Color(0xCC0D0F14),
+                        1.0f to Color(0xF50A0C10)
+                    )
+                )
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color(0x28000000),
-                                0.42f to Color(0x660A0C10),
-                                0.72f to Color(0xCC0D0F14),
-                                1.0f to Color(0xF50A0C10)
-                            )
-                        )
-                    )
+                    .background(overlayGradient)
             )
 
-            // Botão "X" no canto superior direito para fechar/ocultar o card de música
+            // Botão "X" no canto superior direito para fechar/ocultar o card e encerrar reprodução
             if (onCloseCard != null) {
                 Box(
                     modifier = Modifier
@@ -154,11 +156,6 @@ fun FullBleedMediaCard(
             // Camada 3: Informações da música + barra de progresso sólida na cor accent + controles na parte inferior
             val hasTrack = mediaState.title.isNotBlank()
             val displayTitle = if (hasTrack) mediaState.title else stringResource(R.string.no_track_playing)
-            val progress = if (hasTrack && mediaState.durationMs > 0L) {
-                (mediaState.positionMs.toFloat() / mediaState.durationMs.toFloat()).coerceIn(0f, 1f)
-            } else {
-                0f
-            }
 
             Column(
                 modifier = Modifier
@@ -188,23 +185,12 @@ fun FullBleedMediaCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Barra de progresso 100% na cor accent
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color(0x38FFFFFF))
-                ) {
-                    if (progress > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progress)
-                                .fillMaxHeight()
-                                .background(accent)
-                        )
-                    }
-                }
+                // Barra de progresso 100% na cor accent (isolada para evitar recomposição do card inteiro)
+                MediaCardProgressBar(
+                    hasTrack = hasTrack,
+                    durationMs = mediaState.durationMs,
+                    accent = accent
+                )
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -231,21 +217,22 @@ fun FullBleedMediaCard(
                         )
                     }
 
+                    val playBtnBg = if (mediaState.isPlaying) Color.White else accent
+                    val playBtnIconTint = if (mediaState.isPlaying) Color(0xFF0E1015) else accentTheme.onPrimary
+
                     Box(
                         modifier = Modifier
                             .width(112.dp)
                             .height(78.dp)
                             .clip(RoundedCornerShape(26.dp))
-                            .background(
-                                if (mediaState.isPlaying) Color.White else accent
-                            )
+                            .background(playBtnBg)
                             .clickable { MediaManager.playPause() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (mediaState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = if (mediaState.isPlaying) stringResource(R.string.desc_pause) else stringResource(R.string.desc_play),
-                            tint = if (mediaState.isPlaying) Color(0xFF0E1015) else Color.White,
+                            tint = playBtnIconTint,
                             modifier = Modifier.size(50.dp)
                         )
                     }
@@ -268,6 +255,37 @@ fun FullBleedMediaCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MediaCardProgressBar(
+    hasTrack: Boolean,
+    durationMs: Long,
+    accent: Color
+) {
+    val positionMs by MediaManager.mediaPositionMs.collectAsState()
+    val progress = if (hasTrack && durationMs > 0L) {
+        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(4.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Color(0x38FFFFFF))
+    ) {
+        if (progress > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress)
+                    .fillMaxHeight()
+                    .background(accent)
+            )
         }
     }
 }

@@ -145,7 +145,7 @@ fun LauncherSettingsModal(
     onSelectAccent: (String) -> Unit = {},
     showMapOnHome: Boolean = true,
     onToggleShowMap: (Boolean) -> Unit = {},
-    isMapDarkMode: Boolean = false,
+    isMapDarkMode: Boolean = true,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
     mapFollowHeading: Boolean = true,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
@@ -157,7 +157,7 @@ fun LauncherSettingsModal(
     onToggleSwapCockpitColumns: (Boolean) -> Unit = {},
     hideMediaWhenNotPlaying: Boolean = false,
     onToggleHideMediaWhenNotPlaying: (Boolean) -> Unit = {},
-    uiScalePercent: Int = 100,
+    uiScalePercent: Int = 120,
     onSelectUiScalePercent: (Int) -> Unit = {},
     bluetoothPackage: String? = null,
     onSelectBluetoothPackage: (String?) -> Unit = {},
@@ -1164,7 +1164,7 @@ private fun VehicleSettingsPanel(
                                     Icon(
                                         imageVector = Icons.Rounded.Check,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = theme.onPrimary,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }

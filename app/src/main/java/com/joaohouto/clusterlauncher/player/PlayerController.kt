@@ -645,13 +645,8 @@ class PlayerController private constructor(private val context: Context) {
 
     fun playTrackFromQueue(track: Track, queueTracks: List<Track>, fallbackIndex: Int) {
         val activePlayer = getActivePlayer() ?: return
-        if (!track.uri.startsWith("content://") && track.path.isNotEmpty() && !File(track.path).exists() && !File(track.path).canRead()) {
-            showCannotPlayToast()
-            return
-        }
-
         val currentFolder = _uiState.value.currentTrack?.folderPath
-        val isSameFolder = !track.folderPath.isEmpty() && currentFolder == track.folderPath
+        val isSameFolder = track.folderPath.isNotEmpty() && currentFolder == track.folderPath
         var matchedIndex = -1
 
         if (isSameFolder && activePlayer.mediaItemCount > 0) {
@@ -689,14 +684,20 @@ class PlayerController private constructor(private val context: Context) {
 
     fun playFolder(folderPath: String, startIndex: Int = 0, shuffle: Boolean? = null) {
         controllerScope.launch {
-            val tracks = repository.getTracksForFolderSync(folderPath)
-            if (tracks.isEmpty()) {
-                showCannotPlayToast()
-                return@launch
-            }
-
-            val validTracks = tracks.filter { track ->
-                track.uri.startsWith("content://") || track.path.isEmpty() || File(track.path).exists() || File(track.path).canRead()
+            val (validTracks, adjustedIndex) = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                val tracks = repository.getTracksForFolderSync(folderPath)
+                val valid = tracks.filter { track ->
+                    track.uri.startsWith("content://") || track.path.isEmpty() || File(track.path).exists() || File(track.path).canRead()
+                }
+                val targetTrack = tracks.getOrNull(startIndex)
+                val idx = if (targetTrack != null) {
+                    valid.indexOfFirst { it.uri == targetTrack.uri }.takeIf { it >= 0 } ?: 0
+                } else if (shuffle == true && valid.size > 1) {
+                    kotlin.random.Random.nextInt(valid.size)
+                } else {
+                    0
+                }
+                valid to idx
             }
 
             if (validTracks.isEmpty()) {
@@ -708,61 +709,60 @@ class PlayerController private constructor(private val context: Context) {
                 setShuffleMode(shuffle)
             }
 
-            val targetTrack = tracks.getOrNull(startIndex)
-            val adjustedIndex = if (targetTrack != null) {
-                validTracks.indexOfFirst { it.uri == targetTrack.uri }.takeIf { it >= 0 } ?: 0
-            } else if (shuffle == true && validTracks.size > 1) {
-                kotlin.random.Random.nextInt(validTracks.size)
-            } else {
-                0
-            }
-
-            playTracks(validTracks, adjustedIndex)
+            playTracksPrevalidated(validTracks, adjustedIndex)
         }
     }
 
     fun playTracks(tracks: List<Track>, startIndex: Int = 0) {
-        val activePlayer = getActivePlayer() ?: return
         if (tracks.isEmpty()) {
             showCannotPlayToast()
             return
         }
-
-        val validTracks = tracks.filter { track ->
-            track.uri.startsWith("content://") || track.path.isEmpty() || File(track.path).exists() || File(track.path).canRead()
-        }
-        if (validTracks.isEmpty()) {
-            showCannotPlayToast()
-            return
-        }
-
-        val targetTrack = tracks.getOrNull(startIndex)
-        val adjustedIndex = if (targetTrack != null) {
-            validTracks.indexOfFirst { it.uri == targetTrack.uri }.takeIf { it >= 0 } ?: 0
-        } else {
-            0
-        }
-
-        val mediaItems = validTracks.map { track ->
-            val extras = Bundle().apply {
-                putString("folderPath", track.folderPath)
-                putString("filePath", track.path)
-                putLong("durationMs", track.durationMs)
+        controllerScope.launch {
+            val (validTracks, adjustedIndex) = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                val valid = tracks.filter { track ->
+                    track.uri.startsWith("content://") || track.path.isEmpty() || File(track.path).exists() || File(track.path).canRead()
+                }
+                val targetTrack = tracks.getOrNull(startIndex)
+                val idx = if (targetTrack != null) {
+                    valid.indexOfFirst { it.uri == targetTrack.uri }.takeIf { it >= 0 } ?: 0
+                } else {
+                    0
+                }
+                valid to idx
             }
+            if (validTracks.isEmpty()) {
+                showCannotPlayToast()
+                return@launch
+            }
+            playTracksPrevalidated(validTracks, adjustedIndex)
+        }
+    }
 
-            val metadata = MediaMetadata.Builder()
-                .setTitle(track.title)
-                .setArtist(track.artist)
-                .setAlbumTitle(track.album)
-                .setArtworkUri(Uri.parse(track.uri))
-                .setExtras(extras)
-                .build()
+    private suspend fun playTracksPrevalidated(validTracks: List<Track>, adjustedIndex: Int) {
+        val activePlayer = getActivePlayer() ?: return
+        val mediaItems = kotlinx.coroutines.withContext(Dispatchers.Default) {
+            validTracks.map { track ->
+                val extras = Bundle().apply {
+                    putString("folderPath", track.folderPath)
+                    putString("filePath", track.path)
+                    putLong("durationMs", track.durationMs)
+                }
 
-            MediaItem.Builder()
-                .setMediaId(track.uri)
-                .setUri(Uri.parse(track.uri))
-                .setMediaMetadata(metadata)
-                .build()
+                val metadata = MediaMetadata.Builder()
+                    .setTitle(track.title)
+                    .setArtist(track.artist)
+                    .setAlbumTitle(track.album)
+                    .setArtworkUri(Uri.parse(track.uri))
+                    .setExtras(extras)
+                    .build()
+
+                MediaItem.Builder()
+                    .setMediaId(track.uri)
+                    .setUri(Uri.parse(track.uri))
+                    .setMediaMetadata(metadata)
+                    .build()
+            }
         }
 
         val safeIndex = adjustedIndex.coerceIn(0, mediaItems.size - 1)
@@ -777,17 +777,53 @@ class PlayerController private constructor(private val context: Context) {
         reanchorAndSync(activePlayer, mediaItem = mediaItems[safeIndex], explicitPositionMs = 0L)
     }
 
-    fun stop() {
+    fun stopAndClearQueue() {
         try {
             stopPositionTicker()
             nextPreloadJob?.cancel()
             nextPreloadJob = null
-            mediaController?.stop()
-            mediaController?.clearMediaItems()
-            _uiState.value = _uiState.value.copy(isPlaying = false)
+            lyricsLines = null
+            lastSeekTimestamp = 0L
+            lastSeekTargetMs = -1L
+            anchorPositionMs = 0L
+
+            val players = listOfNotNull(
+                directPlayer,
+                PlaybackService.getMediaSessionInstance()?.player,
+                mediaController
+            ).distinct()
+            for (p in players) {
+                try {
+                    p.stop()
+                    p.clearMediaItems()
+                } catch (_: Exception) {}
+            }
+
+            _currentPosition.value = 0L
+            _uiState.value = _uiState.value.copy(
+                currentTrack = null,
+                isPlaying = false,
+                currentPositionMs = 0L,
+                durationMs = 0L,
+                currentLyricsLine = null
+            )
+
+            controllerScope.launch(Dispatchers.IO) {
+                try {
+                    preferencesDataStore.saveLastPlayback(
+                        trackUri = "",
+                        folderPath = "",
+                        positionMs = 0L
+                    )
+                } catch (_: Exception) {}
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error stopping player", e)
+            Log.e(TAG, "Error stopping and clearing queue", e)
         }
+    }
+
+    fun stop() {
+        stopAndClearQueue()
     }
 
     fun release() {

@@ -69,7 +69,7 @@ class DockPreferences(private val context: Context) {
 
     fun getMapDarkModeFlow(): Flow<Boolean> {
         return context.dataStore.data.map { preferences ->
-            preferences[MAP_DARK_MODE_KEY] ?: false
+            preferences[MAP_DARK_MODE_KEY] ?: true
         }
     }
 
@@ -213,7 +213,7 @@ class DockPreferences(private val context: Context) {
 
     fun getUiScalePercentFlow(): Flow<Int> {
         return context.dataStore.data.map { preferences ->
-            (preferences[UI_SCALE_PERCENT_KEY] ?: 100).coerceIn(75, 130)
+            (preferences[UI_SCALE_PERCENT_KEY] ?: 120).coerceIn(75, 130)
         }
     }
 

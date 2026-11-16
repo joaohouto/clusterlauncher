@@ -94,7 +94,7 @@ fun MetallicButton(
 
     val contentColor = when {
         isActive -> accent.primary
-        style == MetallicButtonStyle.Accent -> TextPrimary
+        style == MetallicButtonStyle.Accent -> accent.onPrimary
         else -> TextPrimary
     }
 
@@ -104,7 +104,7 @@ fun MetallicButton(
             .clip(ButtonShape)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(color = if (style == MetallicButtonStyle.Accent) Color.White else accent.primary),
+                indication = rememberRipple(color = if (style == MetallicButtonStyle.Accent) accent.onPrimary else accent.primary),
                 onClick = onClick,
                 onLongClick = onLongClick
             ),

@@ -71,16 +71,6 @@ internal fun launchSlotApp(
         return
     }
 
-    if (slot.type == DockSlotType.Settings && (targetPkg == null || targetPkg == "com.android.settings")) {
-        try {
-            val intent = Intent(Settings.ACTION_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-            return
-        } catch (_: Exception) {}
-    }
-
     if (!targetPkg.isNullOrEmpty()) {
         val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPkg)
         if (launchIntent != null) {

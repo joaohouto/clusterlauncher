@@ -448,7 +448,10 @@ private fun LauncherMainContent(
             swapCockpitColumns = swapCockpitColumns,
             hideMediaWhenNotPlaying = hideMediaWhenNotPlaying,
             isMediaCardDismissed = isMediaCardDismissed,
-            onDismissMediaCard = { isMediaCardDismissed = true },
+            onDismissMediaCard = {
+                MediaManager.stopAndClearQueue()
+                isMediaCardDismissed = true
+            },
             apps = apps,
             isAndroidAutoDrawerOpen = isAndroidAutoDrawerOpen,
             onAppClick = { app -> viewModel.launchApp(viewModel.getApplication(), app.packageName) },

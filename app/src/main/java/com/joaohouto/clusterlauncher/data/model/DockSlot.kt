@@ -6,7 +6,6 @@ import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.Radio
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.joaohouto.clusterlauncher.R
 
@@ -14,8 +13,7 @@ enum class DockSlotType(val id: Int, @param:StringRes val defaultTitleRes: Int, 
     ZLink(4, R.string.slot_zlink, Icons.Rounded.DirectionsCar),
     Gps(2, R.string.slot_gps, Icons.Rounded.Navigation),
     Radio(3, R.string.slot_radio, Icons.Rounded.Radio),
-    Music(1, R.string.slot_music, Icons.Rounded.MusicNote),
-    Settings(5, R.string.slot_settings, Icons.Rounded.Settings);
+    Music(1, R.string.slot_music, Icons.Rounded.MusicNote);
 
     companion object {
         fun fromId(id: Int): DockSlotType = entries.firstOrNull { it.id == id } ?: ZLink

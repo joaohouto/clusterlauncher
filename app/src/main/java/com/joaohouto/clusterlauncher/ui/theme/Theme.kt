@@ -35,7 +35,7 @@ private val AutomotiveColorScheme = darkColorScheme(
 @Composable
 fun ClusterLauncherTheme(
     accentTheme: ClusterAccent = AccentNeedleRed,
-    uiScalePercent: Int = 100,
+    uiScalePercent: Int = 120,
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
@@ -54,6 +54,7 @@ fun ClusterLauncherTheme(
     val colorScheme = remember(accentTheme) {
         AutomotiveColorScheme.copy(
             primary = accentTheme.primary,
+            onPrimary = accentTheme.onPrimary,
             primaryContainer = accentTheme.dark
         )
     }

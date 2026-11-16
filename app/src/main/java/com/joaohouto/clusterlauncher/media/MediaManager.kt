@@ -38,6 +38,14 @@ object MediaManager {
     private val _mediaState = MutableStateFlow(MediaState())
     val mediaState: StateFlow<MediaState> = _mediaState.asStateFlow()
 
+    /**
+     * Fluxo dedicado exclusivamente à posição de reprodução (ms).
+     * Separado do [mediaState] para evitar que o CockpitScreen e o FullBleedMediaCard
+     * inteiro sofram recomposição a cada 150ms durante a reprodução.
+     */
+    private val _mediaPositionMs = MutableStateFlow(0L)
+    val mediaPositionMs: StateFlow<Long> = _mediaPositionMs.asStateFlow()
+
     private var appContext: Context? = null
     private var playerController: PlayerController? = null
     private var activeController: MediaController? = null
@@ -81,13 +89,7 @@ object MediaManager {
             pc.currentPosition.collect { posMs ->
                 val current = _mediaState.value
                 if (!current.isExternalSession && current.hasActiveSession) {
-                    val activeLine = if (showLyricsInPlayer) {
-                        pc.uiState.value.currentLyricsLine
-                    } else null
-                    _mediaState.value = current.copy(
-                        positionMs = posMs,
-                        lyricsLine = activeLine
-                    )
+                    _mediaPositionMs.value = posMs
                 }
             }
         }
@@ -101,10 +103,10 @@ object MediaManager {
                 val duration = _mediaState.value.durationMs.takeIf { it > 0L }
                     ?: (controller.metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)?.takeIf { it > 0L } ?: 0L)
                 val pos = calculateCurrentPositionMs(pbState, duration)
-                _mediaState.value = _mediaState.value.copy(
-                    positionMs = pos,
-                    durationMs = duration
-                )
+                _mediaPositionMs.value = pos
+                if (duration != _mediaState.value.durationMs) {
+                    _mediaState.value = _mediaState.value.copy(durationMs = duration)
+                }
                 mainHandler.postDelayed(this, 500L)
             }
         }
@@ -130,7 +132,9 @@ object MediaManager {
     }
 
     fun setPermissionGranted(granted: Boolean) {
-        _mediaState.value = _mediaState.value.copy(isPermissionGranted = granted)
+        if (_mediaState.value.isPermissionGranted != granted) {
+            _mediaState.value = _mediaState.value.copy(isPermissionGranted = granted)
+        }
     }
 
     fun onSessionsChanged(controllers: List<MediaController>) {
@@ -198,7 +202,6 @@ object MediaManager {
         val extController = activeController
         val extPlaying = extController?.playbackState?.state == PlaybackState.STATE_PLAYING
 
-        // Prefer internal player when it is playing, or when no external session is actively playing
         val useExternal = !internalPlaying && extController != null && (extPlaying || internalTrack == null)
 
         if (useExternal && extController != null) {
@@ -235,13 +238,14 @@ object MediaManager {
             val isPlaying = pbState?.state == PlaybackState.STATE_PLAYING
             val positionMs = if (title.isBlank() && !isPlaying) 0L else calculateCurrentPositionMs(pbState, durationMs)
 
+            _mediaPositionMs.value = positionMs
             _mediaState.value = _mediaState.value.copy(
                 title = title,
                 artist = artist,
                 albumArtBitmap = artBitmap,
                 albumArtUri = artUri,
                 isPlaying = isPlaying,
-                positionMs = positionMs,
+                positionMs = 0L,
                 durationMs = durationMs,
                 packageName = extController.packageName,
                 hasActiveSession = title.isNotBlank() || isPlaying,
@@ -262,13 +266,14 @@ object MediaManager {
             val artBitmap = AudioArtExtractor.getCachedBitmap(artKey)
             val activeLine = if (showLyricsInPlayer) internalState.currentLyricsLine else null
 
+            _mediaPositionMs.value = posMs
             _mediaState.value = _mediaState.value.copy(
                 title = internalTrack.title,
                 artist = internalTrack.artist,
                 albumArtBitmap = artBitmap,
                 albumArtUri = null,
                 isPlaying = internalState.isPlaying,
-                positionMs = posMs,
+                positionMs = 0L,
                 durationMs = durationMs,
                 packageName = appContext?.packageName,
                 hasActiveSession = true,
@@ -278,6 +283,7 @@ object MediaManager {
             return
         }
 
+        _mediaPositionMs.value = 0L
         _mediaState.value = _mediaState.value.copy(
             title = "",
             artist = "",
@@ -321,6 +327,31 @@ object MediaManager {
         } else {
             playerController?.next()
         }
+    }
+
+    /**
+     * Encerra imediatamente a reprodução e limpa a fila de músicas (tanto interna quanto externa).
+     */
+    fun stopAndClearQueue() {
+        mainHandler.removeCallbacks(progressTicker)
+        try {
+            activeController?.transportControls?.stop()
+        } catch (_: Exception) {}
+        playerController?.stopAndClearQueue()
+        _mediaPositionMs.value = 0L
+        _mediaState.value = _mediaState.value.copy(
+            title = "",
+            artist = "",
+            albumArtBitmap = null,
+            albumArtUri = null,
+            isPlaying = false,
+            positionMs = 0L,
+            durationMs = 0L,
+            packageName = null,
+            hasActiveSession = false,
+            lyricsLine = null,
+            isExternalSession = false
+        )
     }
 
     fun openExternalPlayerIfActive(context: Context): Boolean {

@@ -77,10 +77,15 @@ object MapLibreMapHelper {
     const val PITCH_3D_DEGREES = 50.0
     const val PITCH_2D_DEGREES = 0.0
 
+    @Volatile
+    private var isInitialized = false
+
     fun initMapLibre(context: Context) {
+        if (isInitialized) return
         try {
-            MapLibre.getInstance(context)
-            LocalMBTilesServer.init(context)
+            MapLibre.getInstance(context.applicationContext)
+            LocalMBTilesServer.init(context.applicationContext)
+            isInitialized = true
         } catch (e: Exception) {
             Log.e(TAG, "Falha ao inicializar MapLibre", e)
         }
@@ -304,9 +309,19 @@ object MapLibreMapHelper {
         val mapView = MapView(context, mapOptions)
         mapView.tag = MapLibreRenderTracker()
         mapView.setBackgroundColor(Color.parseColor("#0C0D10"))
+        // Oculta o TextureView OpenGL até que o estilo escuro seja carregado e o 1º quadro renderizado,
+        // eliminando completamente o "flashbang" branco na abertura do modal em tela cheia.
+        mapView.alpha = 0f
         mapView.onCreate(null)
         mapView.onStart()
         mapView.onResume()
+
+        val revealMapView = Runnable {
+            if (mapView.alpha < 1f) {
+                mapView.animate().alpha(1f).setDuration(90L).start()
+            }
+        }
+        mapView.postDelayed(revealMapView, 220L)
 
         mapView.getMapAsync { map ->
             // Configurações de interface para visual cockpit limpo
@@ -349,6 +364,7 @@ object MapLibreMapHelper {
                 Log.i(TAG, "Estilo Cockpit Dark carregado com sucesso no MapLibre")
                 setupVehicleMarker(context, style, initialLocation, primaryColor, darkColor, followVehicleHeading, is3dPerspective)
                 onMapReady?.invoke(map)
+                mapView.postDelayed(revealMapView, 32L)
             }
         }
 

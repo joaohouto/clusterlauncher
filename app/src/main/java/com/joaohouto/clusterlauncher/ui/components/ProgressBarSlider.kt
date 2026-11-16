@@ -90,7 +90,7 @@ fun ProgressBarSlider(
                     val elapsed = SystemClock.elapsedRealtime() - anchorRealtimeMs
                     livePositionMs = (anchorPositionMs + elapsed).coerceIn(0L, validDuration)
                 }
-                delay(16L)
+                delay(100L)
             }
         } else {
             anchorPositionMs = currentPositionMs
@@ -112,6 +112,10 @@ fun ProgressBarSlider(
     }
 
     val remainingMs = (validDuration - displayedElapsedMs).coerceAtLeast(0L)
+    val elapsedSec = displayedElapsedMs / 1000L
+    val remainingSec = remainingMs / 1000L
+    val formattedElapsed = remember(elapsedSec) { formatTimeSeconds(elapsedSec) }
+    val formattedRemaining = remember(remainingSec) { "-${formatTimeSeconds(remainingSec)}" }
 
     Column(
         modifier = modifier.fillMaxWidth()
@@ -203,14 +207,14 @@ fun ProgressBarSlider(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = formatTime(displayedElapsedMs),
+                text = formattedElapsed,
                 color = TextSecondary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
             Text(
-                text = "-${formatTime(remainingMs)}",
+                text = formattedRemaining,
                 color = TextSecondary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
@@ -219,8 +223,8 @@ fun ProgressBarSlider(
     }
 }
 
-private fun formatTime(ms: Long): String {
-    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+private fun formatTimeSeconds(totalSecs: Long): String {
+    val totalSeconds = totalSecs.coerceAtLeast(0L)
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     val minStr = if (minutes < 10) "0$minutes" else minutes.toString()

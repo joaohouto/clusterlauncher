@@ -75,12 +75,18 @@ object OsmdroidMapHelper {
         )
     )
 
+    @Volatile
+    private var isInitialized = false
+
     fun initOsmdroid(context: Context) {
+        if (isInitialized) return
         try {
+            val appCtx = context.applicationContext
             val cfg = Configuration.getInstance()
-            cfg.userAgentValue = context.packageName
-            val prefs = context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE)
-            cfg.load(context, prefs)
+            cfg.userAgentValue = appCtx.packageName
+            val prefs = appCtx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE)
+            cfg.load(appCtx, prefs)
+            isInitialized = true
         } catch (e: Exception) {
             Log.e(TAG, "Falha ao inicializar osmdroid", e)
         }

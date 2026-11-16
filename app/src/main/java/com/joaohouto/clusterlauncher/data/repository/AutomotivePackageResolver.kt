@@ -99,7 +99,6 @@ object AutomotivePackageResolver {
             DockSlotType.Gps -> KNOWN_GPS_PACKAGES
             DockSlotType.Radio -> KNOWN_RADIO_PACKAGES
             DockSlotType.Music -> KNOWN_MUSIC_PACKAGES
-            DockSlotType.Settings -> listOf("com.android.settings")
         }
         return candidates.firstOrNull { isPackageInstalled(pm, it) }
     }

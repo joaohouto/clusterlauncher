@@ -34,7 +34,7 @@ fun CockpitScreen(
     onOpenFullScreenMap: () -> Unit = {},
     onOpenPlayer: () -> Unit = {},
     showMapOnHome: Boolean = true,
-    isMapDarkMode: Boolean = false,
+    isMapDarkMode: Boolean = true,
     onToggleMapDarkMode: (Boolean) -> Unit = {},
     mapFollowHeading: Boolean = true,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},

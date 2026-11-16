@@ -52,10 +52,6 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun playTrackInCurrentFolder(trackIndex: Int) {
         val tracks = currentFolderTracks.value
         val track = tracks.getOrNull(trackIndex) ?: return
-        if (!track.uri.startsWith("content://") && track.path.isNotEmpty() && !File(track.path).exists() && !File(track.path).canRead()) {
-            playerController.showCannotPlayToast()
-            return
-        }
         playerController.playTrackFromQueue(track, tracks, trackIndex)
     }
 
