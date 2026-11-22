@@ -195,6 +195,19 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    val displayMode: StateFlow<com.joaohouto.clusterlauncher.data.model.DisplayMode> = dockPreferences.getDisplayModeFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = com.joaohouto.clusterlauncher.data.model.DisplayMode.AUTO
+        )
+
+    fun setDisplayMode(mode: com.joaohouto.clusterlauncher.data.model.DisplayMode) {
+        viewModelScope.launch {
+            dockPreferences.setDisplayMode(mode)
+        }
+    }
+
     init {
         loadApps()
     }

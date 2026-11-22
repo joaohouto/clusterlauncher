@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.joaohouto.clusterlauncher.data.model.AppItem
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -32,6 +33,7 @@ fun AppDrawerScreen(
     modifier: Modifier = Modifier
 ) {
     val accent = LocalClusterAccent.current.primary
+    val colors = LocalClusterColors.current
     val appSlides = remember(apps) {
         if (apps.isEmpty()) listOf(emptyList()) else apps.chunked(10)
     }
@@ -66,7 +68,7 @@ fun AppDrawerScreen(
                             .height(6.dp)
                             .width(if (isActive) 24.dp else 6.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(if (isActive) accent else Color(0xFF383B44))
+                            .background(if (isActive) accent else colors.surfaceCardBorder)
                     )
                 }
             }

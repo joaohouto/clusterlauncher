@@ -190,4 +190,11 @@
     <string name="app_info">Informações do Aplicativo</string>
     <string name="drawer_app_options_title">Opções: %1$s</string>
     <string name="drawer_pin_to_dock_subtitle">Fixar em um slot da Quick Dock:</string>
+    <string name="display_mode_title">Modo de Contraste (Dia / Noite)</string>
+    <string name="display_mode_subtitle">Alterna automaticamente pela luz do carro ou fixa em Dia (alto contraste) ou Noite</string>
+    <string name="display_mode_auto">Automático</string>
+    <string name="display_mode_day">Dia</string>
+    <string name="display_mode_night">Noite</string>
+    <string name="display_mode_active_day">Ativo agora: Dia (Alto Contraste)</string>
+    <string name="display_mode_active_night">Ativo agora: Noite (Escuro)</string>
 </resources>

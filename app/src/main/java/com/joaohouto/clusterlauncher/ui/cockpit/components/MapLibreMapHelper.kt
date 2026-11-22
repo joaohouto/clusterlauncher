@@ -38,20 +38,27 @@ class MapLibreRenderTracker(
     var lastBearing: Float = Float.NaN,
     var lastFollowHeading: Boolean = false,
     var last3dPerspective: Boolean = false,
-    var lastPrimaryColor: Int = 0
+    var lastPrimaryColor: Int = 0,
+    var lastDayHighContrast: Boolean? = null
 ) {
+    fun hasContrastModeChanged(isDayHighContrast: Boolean): Boolean {
+        return lastDayHighContrast != null && lastDayHighContrast != isDayHighContrast
+    }
+
     fun shouldUpdate(
         location: GpsLocationData,
         followHeading: Boolean,
         is3dPerspective: Boolean,
-        primaryColor: Int
+        primaryColor: Int,
+        isDayHighContrast: Boolean = false
     ): Boolean {
         val latChanged = lastLat.isNaN() || abs(location.latitude - lastLat) > 0.000003
         val lonChanged = lastLon.isNaN() || abs(location.longitude - lastLon) > 0.000003
         val bearingChanged = lastBearing.isNaN() || abs(location.bearing - lastBearing) > 0.8f
         val modeChanged = followHeading != lastFollowHeading ||
             is3dPerspective != last3dPerspective ||
-            primaryColor != lastPrimaryColor
+            primaryColor != lastPrimaryColor ||
+            (lastDayHighContrast != null && lastDayHighContrast != isDayHighContrast)
 
         if (latChanged || lonChanged || bearingChanged || modeChanged) {
             lastLat = location.latitude
@@ -60,6 +67,7 @@ class MapLibreRenderTracker(
             lastFollowHeading = followHeading
             last3dPerspective = is3dPerspective
             lastPrimaryColor = primaryColor
+            lastDayHighContrast = isDayHighContrast
             return true
         }
         return false
@@ -283,6 +291,48 @@ object MapLibreMapHelper {
     }
 
     /**
+     * Aplica o estilo Dia (Alto Contraste) ou Noite em tempo real num MapLibreMap já inicializado,
+     * preservando a câmera e reaplicando o marcador do veículo sem destruir o MapView.
+     */
+    fun applyCockpitStyle(
+        context: Context,
+        map: MapLibreMap,
+        isDayHighContrast: Boolean,
+        location: GpsLocationData,
+        primaryColor: Int = Color.parseColor("#E61924"),
+        darkColor: Int = Color.parseColor("#8B0000"),
+        followVehicleHeading: Boolean = false,
+        is3dPerspective: Boolean = false
+    ) {
+        try {
+            if (LocalMBTilesServer.port <= 0) {
+                LocalMBTilesServer.start()
+            }
+            val styleJson = LocalMBTilesServer.buildCockpitStyle(LocalMBTilesServer.port, isDayHighContrast)
+            val density = context.resources.displayMetrics.density
+            val vehicleBitmap = createVehicleMarkerBitmap(density, primaryColor, darkColor)
+            val styleBuilder = Style.Builder()
+                .fromJson(styleJson)
+                .withImage(VEHICLE_ICON_ID, vehicleBitmap)
+
+            map.setStyle(styleBuilder) { style ->
+                Log.i(TAG, "Estilo MapLibre atualizado (isDayHighContrast=$isDayHighContrast)")
+                setupVehicleMarker(
+                    context = context,
+                    style = style,
+                    location = location,
+                    primaryColor = primaryColor,
+                    darkColor = darkColor,
+                    followVehicleHeading = followVehicleHeading,
+                    is3dPerspective = is3dPerspective
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Falha ao atualizar estilo MapLibre", e)
+        }
+    }
+
+    /**
      * Cria e configura um MapView do MapLibre apontando para o servidor local de blocos PBF.
      */
     fun createMapView(
@@ -295,6 +345,7 @@ object MapLibreMapHelper {
         darkColor: Int = Color.parseColor("#8B0000"),
         followVehicleHeading: Boolean = false,
         is3dPerspective: Boolean = false,
+        isDayHighContrast: Boolean = false,
         onMapReady: ((MapLibreMap) -> Unit)? = null
     ): MapView {
         initMapLibre(context)
@@ -308,8 +359,8 @@ object MapLibreMapHelper {
             .translucentTextureSurface(false)
 
         val mapView = MapView(context, mapOptions)
-        mapView.tag = MapLibreRenderTracker()
-        mapView.setBackgroundColor(Color.parseColor("#0C0D10"))
+        mapView.tag = MapLibreRenderTracker(lastDayHighContrast = isDayHighContrast)
+        mapView.setBackgroundColor(Color.parseColor(if (isDayHighContrast) "#181C24" else "#0C0D10"))
         // Oculta o TextureView OpenGL até que o estilo escuro seja carregado e o 1º quadro renderizado,
         // eliminando completamente o "flashbang" branco na abertura do modal em tela cheia.
         mapView.alpha = 0f
@@ -357,7 +408,7 @@ object MapLibreMapHelper {
             if (LocalMBTilesServer.port <= 0) {
                 LocalMBTilesServer.start()
             }
-            val styleJson = LocalMBTilesServer.buildCockpitDarkStyle(LocalMBTilesServer.port)
+            val styleJson = LocalMBTilesServer.buildCockpitStyle(LocalMBTilesServer.port, isDayHighContrast)
             val styleBuilder = Style.Builder().fromJson(styleJson)
 
             val density = context.resources.displayMetrics.density

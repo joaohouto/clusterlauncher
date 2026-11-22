@@ -16,46 +16,44 @@ import androidx.core.view.WindowCompat
 
 val LocalUiScale = compositionLocalOf { 1.0f }
 
-private val AutomotiveColorScheme = darkColorScheme(
-    primary = NeedleRed,
-    onPrimary = TextPrimary,
-    primaryContainer = NeedleRedDark,
-    onPrimaryContainer = TextPrimary,
-    secondary = MetallicIntermediate,
-    onSecondary = TextPrimary,
-    background = DeepMetallicBackground,
-    onBackground = TextPrimary,
-    surface = SurfaceCard,
-    onSurface = TextPrimary,
-    surfaceVariant = MetallicIntermediate,
-    onSurfaceVariant = TextSecondary,
-    outline = SurfaceCardBorder
-)
-
 @Composable
 fun ClusterLauncherTheme(
     accentTheme: ClusterAccent = AccentNeedleRed,
     uiScalePercent: Int = 120,
+    isDayHighContrast: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val palette = if (isDayHighContrast) DayHighContrastClusterPalette else NightClusterPalette
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
-                window.statusBarColor = DeepMetallicBackground.toArgb()
-                window.navigationBarColor = DeepMetallicBackground.toArgb()
+                val bgArgb = palette.background.toArgb()
+                window.statusBarColor = bgArgb
+                window.navigationBarColor = bgArgb
                 WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
                 WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
             }
         }
     }
 
-    val colorScheme = remember(accentTheme) {
-        AutomotiveColorScheme.copy(
+    val colorScheme = remember(accentTheme, palette) {
+        darkColorScheme(
             primary = accentTheme.primary,
             onPrimary = accentTheme.onPrimary,
-            primaryContainer = accentTheme.dark
+            primaryContainer = accentTheme.dark,
+            onPrimaryContainer = palette.textPrimary,
+            secondary = palette.metallicIntermediate,
+            onSecondary = palette.textPrimary,
+            background = palette.background,
+            onBackground = palette.textPrimary,
+            surface = palette.surfaceCard,
+            onSurface = palette.textPrimary,
+            surfaceVariant = palette.metallicIntermediate,
+            onSurfaceVariant = palette.textSecondary,
+            outline = palette.surfaceCardBorder
         )
     }
 
@@ -70,6 +68,7 @@ fun ClusterLauncherTheme(
 
     CompositionLocalProvider(
         LocalClusterAccent provides accentTheme,
+        LocalClusterColors provides palette,
         LocalUiScale provides scaleFactor,
         LocalDensity provides scaledDensity
     ) {

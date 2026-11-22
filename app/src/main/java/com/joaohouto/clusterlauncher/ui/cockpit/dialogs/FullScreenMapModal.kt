@@ -70,6 +70,7 @@ import com.joaohouto.clusterlauncher.ui.cockpit.components.OsmRenderTracker
 import com.joaohouto.clusterlauncher.ui.cockpit.components.OsmdroidMapHelper
 import com.joaohouto.clusterlauncher.ui.cockpit.components.VehicleMarkerOverlay
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextDisabled
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
@@ -109,12 +110,15 @@ fun FullScreenMapModal(
     var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     var mapLibreMapView by remember { mutableStateOf<org.maplibre.android.maps.MapView?>(null) }
 
+    val colors = LocalClusterColors.current
+    val isDayHighContrast = colors.isDayHighContrast
+
     BackHandler { onDismiss() }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0C0D10))
+            .background(colors.background)
     ) {
             // 1. Motor de Renderização do Mapa (MapLibre Vetorial, Osmdroid Raster ou Fallback Radar)
             val activeFile = mapState.activeFile
@@ -139,7 +143,8 @@ fun FullScreenMapModal(
                                 primaryColor = primaryColor,
                                 darkColor = darkColor,
                                 followVehicleHeading = followHeading,
-                                is3dPerspective = false
+                                is3dPerspective = false,
+                                isDayHighContrast = isDayHighContrast
                             ) { map ->
                                 mapLibreMap = map
                                 map.uiSettings.isTiltGesturesEnabled = false
@@ -167,8 +172,23 @@ fun FullScreenMapModal(
                         update = { mapView ->
                             val map = mapLibreMap ?: return@AndroidView
                             val tracker = mapView.tag as? MapLibreRenderTracker
-                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, false, primaryColor)) {
+                            val contrastChanged = tracker?.hasContrastModeChanged(isDayHighContrast) == true
+                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, false, primaryColor, isDayHighContrast)) {
                                 return@AndroidView
+                            }
+
+                            if (contrastChanged) {
+                                mapView.setBackgroundColor(android.graphics.Color.parseColor(colors.mapBackgroundHex))
+                                MapLibreMapHelper.applyCockpitStyle(
+                                    context = mapView.context,
+                                    map = map,
+                                    isDayHighContrast = isDayHighContrast,
+                                    location = locationState,
+                                    primaryColor = primaryColor,
+                                    darkColor = darkColor,
+                                    followVehicleHeading = followHeading,
+                                    is3dPerspective = false
+                                )
                             }
 
                             if (!isMapPanned) {
@@ -189,19 +209,21 @@ fun FullScreenMapModal(
                                     .build()
                                 map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 850)
                             }
-                            MapLibreMapHelper.updateVehicleLocation(
-                                mapView.context,
-                                mapLibreMap,
-                                locationState,
-                                primaryColor,
-                                darkColor,
-                                followVehicleHeading = followHeading,
-                                is3dPerspective = false
-                            )
+                            if (!contrastChanged) {
+                                MapLibreMapHelper.updateVehicleLocation(
+                                    mapView.context,
+                                    mapLibreMap,
+                                    locationState,
+                                    primaryColor,
+                                    darkColor,
+                                    followVehicleHeading = followHeading,
+                                    is3dPerspective = false
+                                )
+                            }
                         },
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF0C0D10))
+                            .background(colors.background)
                     )
 
                     DisposableEffect(Unit) {
@@ -226,7 +248,8 @@ fun FullScreenMapModal(
                                 initialZoom = 17.0,
                                 primaryColor = primaryColor,
                                 darkColor = darkColor,
-                                followHeading = followHeading
+                                followHeading = followHeading,
+                                isDayHighContrast = isDayHighContrast
                             )
 
                             mapView.setOnTouchListener { _, event ->
@@ -253,15 +276,13 @@ fun FullScreenMapModal(
                         },
                         update = { mapView ->
                             val tracker = mapView.tag as? OsmRenderTracker
-                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, false, initialDarkMode, primaryColor)) {
+                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, false, initialDarkMode, primaryColor, isDayHighContrast)) {
                                 return@AndroidView
                             }
 
-                            if (initialDarkMode) {
-                                mapView.overlayManager.tilesOverlay.setColorFilter(OsmdroidMapHelper.DarkCockpitColorFilter)
-                            } else {
-                                mapView.overlayManager.tilesOverlay.setColorFilter(null)
-                            }
+                            mapView.overlayManager.tilesOverlay.setColorFilter(
+                                OsmdroidMapHelper.resolveColorFilter(initialDarkMode, isDayHighContrast)
+                            )
 
                             if (!isMapPanned) {
                                 val target = MapProjectionHelper.calculateRoadAheadTarget(
@@ -394,8 +415,8 @@ fun FullScreenMapModal(
                 // Botão Voltar Grande para uso automotivo com estilo neutro
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xEE181A1F),
-                    border = BorderStroke(1.dp, SurfaceCardBorder),
+                    color = colors.floatingOverlaySurface,
+                    border = BorderStroke(1.dp, colors.surfaceCardBorder),
                     modifier = Modifier
                         .height(54.dp)
                         .clip(RoundedCornerShape(16.dp))
@@ -448,7 +469,7 @@ fun FullScreenMapModal(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xEE181A1F),
+                        color = colors.floatingOverlaySurface,
                         border = BorderStroke(1.5.dp, accent),
                         modifier = Modifier
                             .size(62.dp)
@@ -497,8 +518,8 @@ fun FullScreenMapModal(
                 // Bloco de Controle de Zoom Vertical Ampliado
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = Color(0xEE181A1F),
-                    border = BorderStroke(1.5.dp, SurfaceCardBorder)
+                    color = colors.floatingOverlaySurface,
+                    border = BorderStroke(1.5.dp, colors.surfaceCardBorder)
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,

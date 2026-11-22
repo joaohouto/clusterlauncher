@@ -42,7 +42,7 @@
             android:clearTaskOnLaunch="true"
             android:stateNotNeeded="true"
             android:screenOrientation="sensorLandscape"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboardHidden"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboardHidden|uiMode"
             android:exported="true">
 
             <!-- Identifica a Activity como Launcher / Tela Inicial do Android -->

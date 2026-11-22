@@ -55,6 +55,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
@@ -74,14 +75,15 @@ fun FullBleedMediaCard(
 ) {
     val mediaState by MediaManager.mediaState.collectAsState()
     val accentTheme = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
     val accent = accentTheme.primary
 
     Surface(
         modifier = modifier
             .clip(CardShape)
-            .border(BorderStroke(1.dp, SurfaceCardBorder), CardShape),
+            .border(BorderStroke(1.dp, colors.surfaceCardBorder), CardShape),
         shape = CardShape,
-        color = Color(0xFF101216)
+        color = colors.surfaceCard
     ) {
         val albumArtImage = remember(mediaState.albumArtBitmap) {
             mediaState.albumArtBitmap?.asImageBitmap()
@@ -144,16 +146,27 @@ fun FullBleedMediaCard(
                 }
             }
 
-            // Camada 2: Gradiente vertical estilo Android Auto para legibilidade perfeita
-            val overlayGradient = remember {
-                Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.0f to Color(0x28000000),
-                        0.42f to Color(0x660A0C10),
-                        0.72f to Color(0xCC0D0F14),
-                        1.0f to Color(0xF50A0C10)
+            // Camada 2: Gradiente vertical estilo Android Auto (mais transparente no topo no modo Dia)
+            val overlayGradient = remember(colors.isDayHighContrast) {
+                if (colors.isDayHighContrast) {
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0.0f to Color.Transparent,
+                            0.42f to Color(0x3812161E),
+                            0.72f to Color(0xBF141820),
+                            1.0f to Color(0xEC141820)
+                        )
                     )
-                )
+                } else {
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0.0f to Color(0x1E000000),
+                            0.42f to Color(0x5A0A0C10),
+                            0.72f to Color(0xCC0D0F14),
+                            1.0f to Color(0xF50A0C10)
+                        )
+                    )
+                }
             }
             Box(
                 modifier = Modifier

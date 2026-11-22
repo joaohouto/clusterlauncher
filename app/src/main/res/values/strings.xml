@@ -190,4 +190,11 @@
     <string name="app_info">App Info</string>
     <string name="drawer_app_options_title">Options: %1$s</string>
     <string name="drawer_pin_to_dock_subtitle">Pin to Quick Dock slot:</string>
+    <string name="display_mode_title">Display Contrast Mode (Day / Night)</string>
+    <string name="display_mode_subtitle">Automatically switches with car headlights or stays locked in high-contrast Day or Night mode</string>
+    <string name="display_mode_auto">Auto</string>
+    <string name="display_mode_day">Day</string>
+    <string name="display_mode_night">Night</string>
+    <string name="display_mode_active_day">Active now: Day (High Contrast)</string>
+    <string name="display_mode_active_night">Active now: Night (Dark)</string>
 </resources>

@@ -60,6 +60,7 @@ import com.joaohouto.clusterlauncher.ui.components.SquareAlbumArt
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackgroundSecondary
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
@@ -78,11 +79,12 @@ fun FolderBrowserScreen(
     val isScanning by viewModel.isScanning.collectAsState()
     val bottomBarState by viewModel.bottomBarState.collectAsState()
     val accent = LocalClusterAccent.current.primary
+    val colors = LocalClusterColors.current
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DeepMetallicBackground)
+            .background(colors.background)
     ) {
         // Top Header Bar
         Row(
@@ -220,8 +222,8 @@ fun FolderBrowserScreen(
                         .fillMaxHeight()
                         .padding(bottom = 12.dp),
                     shape = RoundedCornerShape(16.dp),
-                    color = SurfaceCard,
-                    border = BorderStroke(1.dp, SurfaceCardBorder)
+                    color = colors.surfaceCard,
+                    border = BorderStroke(1.dp, colors.surfaceCardBorder)
                 ) {
                     val activeFolder = selectedFolder
                     if (activeFolder == null) {
@@ -374,12 +376,13 @@ private fun SplitFolderItem(
     onPlayFolderNow: () -> Unit
 ) {
     val accent = LocalClusterAccent.current.primary
+    val colors = LocalClusterColors.current
     val shape = RoundedCornerShape(14.dp)
-    val bgColor = if (isSelected) MetallicIntermediate else SurfaceCard
+    val bgColor = if (isSelected) colors.metallicIntermediate else colors.surfaceCard
     val borderColor = when {
         isSelected -> accent
         isPlayingFolder -> accent.copy(alpha = 0.55f)
-        else -> SurfaceCardBorder
+        else -> colors.surfaceCardBorder
     }
 
     Row(
@@ -450,6 +453,7 @@ private fun FolderTrackRow(
     onClick: () -> Unit
 ) {
     val accent = LocalClusterAccent.current.primary
+    val colors = LocalClusterColors.current
     val shape = RoundedCornerShape(10.dp)
     val formattedIndex = remember(index) {
         val num = index + 1
@@ -468,10 +472,10 @@ private fun FolderTrackRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(if (isCurrent) accent.copy(alpha = 0.12f) else DeepMetallicBackground)
+            .background(if (isCurrent) accent.copy(alpha = 0.14f) else colors.backgroundSecondary)
             .border(
                 width = 1.dp,
-                color = if (isCurrent) accent else SurfaceCardBorder,
+                color = if (isCurrent) accent else colors.surfaceCardBorder,
                 shape = shape
             )
             .clickable(onClick = onClick)
@@ -539,12 +543,13 @@ private fun FullControlsBottomPlaybackBar(
     onBarClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalClusterColors.current
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(104.dp),
-        color = SurfaceCard,
-        border = BorderStroke(1.dp, SurfaceCardBorder)
+        color = colors.surfaceCard,
+        border = BorderStroke(1.dp, colors.surfaceCardBorder)
     ) {
         Row(
             modifier = Modifier

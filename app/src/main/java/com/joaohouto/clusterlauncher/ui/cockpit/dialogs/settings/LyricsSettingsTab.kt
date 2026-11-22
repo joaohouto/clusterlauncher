@@ -112,6 +112,7 @@ import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.ui.theme.ALL_ACCENT_THEMES
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.LocalUiScale
 import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
 import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
@@ -134,6 +135,7 @@ internal fun LyricsSettingsPanel(
     onSelectLyricsOffset: (Int) -> Unit
 ) {
     val accent = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
     val scrollState = rememberScrollState()
 
     Column(
@@ -160,8 +162,8 @@ internal fun LyricsSettingsPanel(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = SurfaceCard,
-            border = BorderStroke(1.dp, SurfaceCardBorder)
+            color = colors.surfaceCard,
+            border = BorderStroke(1.dp, colors.surfaceCardBorder)
         ) {
             Row(
                 modifier = Modifier
@@ -202,8 +204,8 @@ internal fun LyricsSettingsPanel(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = SurfaceCard,
-            border = BorderStroke(1.dp, SurfaceCardBorder)
+            color = colors.surfaceCard,
+            border = BorderStroke(1.dp, colors.surfaceCardBorder)
         ) {
             Column(
                 modifier = Modifier
@@ -314,8 +316,8 @@ internal fun LyricsSettingsPanel(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = SurfaceCard,
-            border = BorderStroke(1.dp, SurfaceCardBorder)
+            color = colors.surfaceCard,
+            border = BorderStroke(1.dp, colors.surfaceCardBorder)
         ) {
             Column(
                 modifier = Modifier

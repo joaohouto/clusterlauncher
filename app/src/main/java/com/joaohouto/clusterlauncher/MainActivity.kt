@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -62,8 +63,10 @@ import androidx.lifecycle.lifecycleScope
 import com.joaohouto.clusterlauncher.data.local.AppDatabase
 import com.joaohouto.clusterlauncher.data.local.PreferencesDataStore
 import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
+import com.joaohouto.clusterlauncher.data.model.DisplayMode
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
+import com.joaohouto.clusterlauncher.data.receiver.CarLightDetector
 import com.joaohouto.clusterlauncher.data.receiver.UsbStateReceiver
 import com.joaohouto.clusterlauncher.data.repository.MusicRepository
 import com.joaohouto.clusterlauncher.data.update.AppUpdateManager
@@ -85,6 +88,7 @@ import com.joaohouto.clusterlauncher.ui.player.PlayerViewModel
 import com.joaohouto.clusterlauncher.ui.theme.ClusterLauncherTheme
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.getAccentThemeById
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -143,6 +147,7 @@ class MainActivity : ComponentActivity() {
 
         UsbStateReceiver.checkInitialUsbState(this)
         BluetoothStateReceiver.checkInitialBluetoothState(this)
+        CarLightDetector.register(this)
         com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.restoreLastLocation(this)
         com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper.updateDefaultLauncherState(this)
         com.joaohouto.clusterlauncher.ui.cockpit.components.OsmdroidMapHelper.initOsmdroid(this)
@@ -179,6 +184,12 @@ class MainActivity : ComponentActivity() {
             val currentAccent = remember(accentThemeId) { getAccentThemeById(accentThemeId) }
             val fullScreenMode by appDrawerViewModel.fullScreenMode.collectAsState()
             val uiScalePercent by appDrawerViewModel.uiScalePercent.collectAsState()
+            val displayMode by appDrawerViewModel.displayMode.collectAsState()
+            val isSystemNight by CarLightDetector.isSystemNightMode.collectAsState()
+            val headlightOn by CarLightDetector.headlightOn.collectAsState()
+            val isDayHighContrast = remember(displayMode, isSystemNight, headlightOn) {
+                DisplayMode.resolveIsDayHighContrast(displayMode, isSystemNight, headlightOn)
+            }
             val isKeepScreenOn by preferencesDataStore.keepScreenOnFlow.collectAsState(initial = true)
             val isShowLyrics by preferencesDataStore.showLyricsFlow.collectAsState(initial = true)
             val autoCheckUpdates by preferencesDataStore.autoCheckUpdatesFlow.collectAsState(initial = true)
@@ -203,13 +214,15 @@ class MainActivity : ComponentActivity() {
 
             ClusterLauncherTheme(
                 accentTheme = currentAccent,
-                uiScalePercent = uiScalePercent
+                uiScalePercent = uiScalePercent,
+                isDayHighContrast = isDayHighContrast
             ) {
                 LauncherMainContent(
                     viewModel = appDrawerViewModel,
                     homeViewModel = homeViewModel,
                     playerViewModel = playerViewModel,
                     showLyrics = isShowLyrics,
+                    isDayHighContrast = isDayHighContrast,
                     scrollToCockpitTrigger = scrollToCockpitTrigger,
                     fullScreenMode = fullScreenMode,
                     showFullScreenMap = isFullScreenMapOpen,
@@ -223,8 +236,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        CarLightDetector.updateFromConfiguration(newConfig)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        CarLightDetector.unregister(this)
         try {
             unregisterReceiver(packageChangeReceiver)
         } catch (_: Exception) {
@@ -361,6 +380,7 @@ private fun LauncherMainContent(
     homeViewModel: HomeViewModel,
     playerViewModel: PlayerViewModel,
     showLyrics: Boolean,
+    isDayHighContrast: Boolean = false,
     scrollToCockpitTrigger: Int,
     fullScreenMode: Boolean = false,
     showFullScreenMap: Boolean = false,
@@ -384,6 +404,8 @@ private fun LauncherMainContent(
     val swapCockpitColumns by viewModel.swapCockpitColumns.collectAsState()
     val hideMediaWhenNotPlaying by viewModel.hideMediaWhenNotPlaying.collectAsState()
     val uiScalePercent by viewModel.uiScalePercent.collectAsState()
+    val displayMode by viewModel.displayMode.collectAsState()
+    val colors = LocalClusterColors.current
 
     var isAndroidAutoDrawerOpen by remember { mutableStateOf(false) }
     var isMediaCardDismissed by remember { mutableStateOf(false) }
@@ -411,7 +433,7 @@ private fun LauncherMainContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DeepMetallicBackground)
+            .background(colors.background)
             .then(
                 if (fullScreenMode || showFullScreenMap) Modifier else Modifier.safeDrawingPadding()
             )
@@ -506,6 +528,9 @@ private fun LauncherMainContent(
                 initialTab = settingsInitialTab,
                 selectedAccentId = accentThemeId,
                 onSelectAccent = { viewModel.selectAccentTheme(it) },
+                displayMode = displayMode,
+                isDayHighContrast = isDayHighContrast,
+                onSelectDisplayMode = { viewModel.setDisplayMode(it) },
                 showMapOnHome = showMapOnHome,
                 onToggleShowMap = { viewModel.setShowMapOnHome(it) },
                 isMapDarkMode = mapDarkMode,

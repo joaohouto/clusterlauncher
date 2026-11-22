@@ -207,5 +207,19 @@ class DockPreferences(private val context: Context) {
             preferences[UI_SCALE_PERCENT_KEY] = percent.coerceIn(75, 130)
         }
     }
+
+    private val DISPLAY_MODE_KEY = stringPreferencesKey("display_mode")
+
+    fun getDisplayModeFlow(): Flow<com.joaohouto.clusterlauncher.data.model.DisplayMode> {
+        return context.dataStore.data.map { preferences ->
+            com.joaohouto.clusterlauncher.data.model.DisplayMode.fromId(preferences[DISPLAY_MODE_KEY])
+        }
+    }
+
+    suspend fun setDisplayMode(mode: com.joaohouto.clusterlauncher.data.model.DisplayMode) {
+        context.dataStore.edit { preferences ->
+            preferences[DISPLAY_MODE_KEY] = mode.id
+        }
+    }
 }
 

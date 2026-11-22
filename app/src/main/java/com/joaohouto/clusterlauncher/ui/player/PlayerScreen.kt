@@ -61,6 +61,7 @@ import com.joaohouto.clusterlauncher.ui.components.ProgressBarSlider
 import com.joaohouto.clusterlauncher.ui.components.SquareAlbumArt
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
 import java.io.File
@@ -119,6 +120,7 @@ fun PlayerScreen(
     val state by viewModel.playbackState.collectAsState()
     val currentTrack = state.currentTrack
     val accent = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
 
     var dragAmountX by remember { mutableFloatStateOf(0f) }
 
@@ -130,7 +132,7 @@ fun PlayerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DeepMetallicBackground)
+            .background(colors.background)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragStart = { dragAmountX = 0f },
@@ -304,7 +306,7 @@ fun PlayerScreen(
                     }
                     Text(
                         text = artistAlbumText,
-                        color = if (currentTrack == null) accent.primary else TextSecondary,
+                        color = if (currentTrack == null) accent.primary else colors.textSecondary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,

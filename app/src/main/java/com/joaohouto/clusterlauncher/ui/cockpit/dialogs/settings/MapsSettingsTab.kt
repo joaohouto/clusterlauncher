@@ -112,6 +112,7 @@ import com.joaohouto.clusterlauncher.media.MediaManager
 import com.joaohouto.clusterlauncher.ui.theme.ALL_ACCENT_THEMES
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.LocalUiScale
 import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
 import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
@@ -155,6 +156,7 @@ internal fun MapsSettingsPanel(
 ) {
     val scrollState = rememberScrollState()
     val accent = LocalClusterAccent.current.primary
+    val colors = LocalClusterColors.current
 
     Column(
         modifier = Modifier
@@ -247,8 +249,8 @@ internal fun MapsSettingsPanel(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            color = SurfaceCard,
-            border = BorderStroke(1.dp, SurfaceCardBorder)
+            color = colors.surfaceCard,
+            border = BorderStroke(1.dp, colors.surfaceCardBorder)
         ) {
             Column(
                 modifier = Modifier
@@ -375,8 +377,8 @@ internal fun MapsSettingsPanel(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = SurfaceCard,
-            border = BorderStroke(1.dp, SurfaceCardBorder)
+            color = colors.surfaceCard,
+            border = BorderStroke(1.dp, colors.surfaceCardBorder)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),

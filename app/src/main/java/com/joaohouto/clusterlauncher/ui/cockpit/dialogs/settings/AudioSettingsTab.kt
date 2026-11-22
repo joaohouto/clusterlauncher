@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.model.EqualizerPreset
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
@@ -69,6 +70,7 @@ internal fun AudioSettingsPanel(
     onUpdateEqBandsMb: (List<Int>) -> Unit
 ) {
     val accent = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
     val scrollState = rememberScrollState()
     var volumeSliderValue by remember(currentAppVolumePercent) {
         mutableFloatStateOf(currentAppVolumePercent.toFloat())
@@ -116,8 +118,8 @@ internal fun AudioSettingsPanel(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = SurfaceCard,
-            border = BorderStroke(1.dp, SurfaceCardBorder)
+            color = colors.surfaceCard,
+            border = BorderStroke(1.dp, colors.surfaceCardBorder)
         ) {
             Column(
                 modifier = Modifier
@@ -197,8 +199,8 @@ internal fun AudioSettingsPanel(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
-            color = SurfaceCard,
-            border = BorderStroke(1.dp, SurfaceCardBorder)
+            color = colors.surfaceCard,
+            border = BorderStroke(1.dp, colors.surfaceCardBorder)
         ) {
             var syncSliderValue by remember(currentAudioSyncOffsetMs) {
                 mutableFloatStateOf(currentAudioSyncOffsetMs.toFloat())
@@ -280,6 +282,7 @@ private fun EqualizerSettingsCard(
     onUpdateEqBandsMb: (List<Int>) -> Unit
 ) {
     val accent = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
     val effectiveBands = if (currentEqPreset == EqualizerPreset.CUSTOM) {
         currentEqBandsMb
     } else {
@@ -439,11 +442,12 @@ private fun AudioToggleCard(
     onCheckedChange: (Boolean) -> Unit
 ) {
     val accent = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        color = SurfaceCard,
-        border = BorderStroke(1.dp, SurfaceCardBorder)
+        color = colors.surfaceCard,
+        border = BorderStroke(1.dp, colors.surfaceCardBorder)
     ) {
         Row(
             modifier = Modifier

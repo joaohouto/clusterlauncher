@@ -29,14 +29,16 @@ class OsmRenderTracker(
     var lastFollowHeading: Boolean = false,
     var last3dPerspective: Boolean = false,
     var lastDarkMode: Boolean = false,
-    var lastPrimaryColor: Int = 0
+    var lastPrimaryColor: Int = 0,
+    var lastDayHighContrast: Boolean = false
 ) {
     fun shouldUpdate(
         location: GpsLocationData,
         followHeading: Boolean,
         is3dPerspective: Boolean,
         isDarkMode: Boolean,
-        primaryColor: Int
+        primaryColor: Int,
+        isDayHighContrast: Boolean = false
     ): Boolean {
         val latChanged = lastLat.isNaN() || abs(location.latitude - lastLat) > 0.000003
         val lonChanged = lastLon.isNaN() || abs(location.longitude - lastLon) > 0.000003
@@ -44,7 +46,8 @@ class OsmRenderTracker(
         val modeChanged = followHeading != lastFollowHeading ||
             is3dPerspective != last3dPerspective ||
             isDarkMode != lastDarkMode ||
-            primaryColor != lastPrimaryColor
+            primaryColor != lastPrimaryColor ||
+            isDayHighContrast != lastDayHighContrast
 
         if (latChanged || lonChanged || bearingChanged || modeChanged) {
             lastLat = location.latitude
@@ -54,6 +57,7 @@ class OsmRenderTracker(
             last3dPerspective = is3dPerspective
             lastDarkMode = isDarkMode
             lastPrimaryColor = primaryColor
+            lastDayHighContrast = isDayHighContrast
             return true
         }
         return false
@@ -74,6 +78,22 @@ object OsmdroidMapHelper {
             )
         )
     )
+
+    val DayHighContrastCockpitColorFilter = ColorMatrixColorFilter(
+        ColorMatrix(
+            floatArrayOf(
+                -0.95f,  0.00f,  0.00f, 0.00f, 265f,
+                 0.00f, -0.95f,  0.00f, 0.00f, 268f,
+                 0.00f,  0.00f, -0.90f, 0.00f, 275f,
+                 0.00f,  0.00f,  0.00f, 1.00f,   0f
+            )
+        )
+    )
+
+    fun resolveColorFilter(isDarkMode: Boolean, isDayHighContrast: Boolean): ColorMatrixColorFilter? {
+        if (!isDarkMode) return null
+        return if (isDayHighContrast) DayHighContrastCockpitColorFilter else DarkCockpitColorFilter
+    }
 
     @Volatile
     private var isInitialized = false
@@ -104,7 +124,8 @@ object OsmdroidMapHelper {
         initialZoom: Double = 17.0,
         primaryColor: Int = Color.parseColor("#E61924"),
         darkColor: Int = Color.parseColor("#8B0000"),
-        followHeading: Boolean = false
+        followHeading: Boolean = false,
+        isDayHighContrast: Boolean = false
     ): MapView {
         initOsmdroid(context)
 
@@ -165,12 +186,10 @@ object OsmdroidMapHelper {
             mapView.isFocusableInTouchMode = false
         }
 
-        // Aplica filtro noturno se ativado
-        if (isDarkMode) {
-            mapView.overlayManager.tilesOverlay.setColorFilter(DarkCockpitColorFilter)
-        } else {
-            mapView.overlayManager.tilesOverlay.setColorFilter(null)
-        }
+        // Aplica filtro escuro (noturno ou diurno de alto contraste)
+        mapView.overlayManager.tilesOverlay.setColorFilter(
+            resolveColorFilter(isDarkMode, isDayHighContrast)
+        )
 
         // Posição inicial e orientação
         val target = MapProjectionHelper.calculateRoadAheadTarget(

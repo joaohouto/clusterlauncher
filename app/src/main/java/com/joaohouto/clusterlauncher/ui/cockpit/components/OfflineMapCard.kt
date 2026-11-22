@@ -56,6 +56,7 @@ import com.joaohouto.clusterlauncher.data.location.GpsLocationData
 import com.joaohouto.clusterlauncher.data.location.GpsLocationRepository
 import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextDisabled
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
@@ -113,9 +114,10 @@ fun OfflineMapCard(
         MBTilesRepository.initialize(context)
     }
 
-    val backgroundBrush = remember {
+    val colors = LocalClusterColors.current
+    val backgroundBrush = remember(colors) {
         Brush.verticalGradient(
-            colors = listOf(Color(0xFF181A1F), Color(0xFF101215))
+            colors = listOf(colors.surfaceCard, colors.backgroundSecondary)
         )
     }
 
@@ -128,7 +130,7 @@ fun OfflineMapCard(
     Surface(
         modifier = cardModifier
             .clip(CardShape)
-            .border(BorderStroke(1.dp, SurfaceCardBorder), CardShape),
+            .border(BorderStroke(1.dp, colors.surfaceCardBorder), CardShape),
         shape = CardShape,
         color = Color.Transparent
     ) {
@@ -234,6 +236,8 @@ private fun MapLibreCardMapView(
     isMapPaused: Boolean
 ) {
     val accent = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
+    val isDayHighContrast = colors.isDayHighContrast
     val primaryColor = accent.primary.toArgb()
     val darkColor = accent.dark.toArgb()
     var mapViewInstance by remember { mutableStateOf<MapLibreMapView?>(null) }
@@ -276,7 +280,8 @@ private fun MapLibreCardMapView(
                         primaryColor = primaryColor,
                         darkColor = darkColor,
                         followVehicleHeading = followHeading,
-                        is3dPerspective = is3dPerspective
+                        is3dPerspective = is3dPerspective,
+                        isDayHighContrast = isDayHighContrast
                     )
                     mapViewInstance = mv
                     mv
@@ -284,11 +289,25 @@ private fun MapLibreCardMapView(
                 update = { mapView ->
                     if (isMapPaused) return@AndroidView
                     val tracker = mapView.tag as? MapLibreRenderTracker
-                    if (tracker != null && !tracker.shouldUpdate(location, followHeading, is3dPerspective, primaryColor)) {
+                    val contrastChanged = tracker?.hasContrastModeChanged(isDayHighContrast) == true
+                    if (tracker != null && !tracker.shouldUpdate(location, followHeading, is3dPerspective, primaryColor, isDayHighContrast)) {
                         return@AndroidView
                     }
 
                     mapView.getMapAsync { map ->
+                        if (contrastChanged) {
+                            mapView.setBackgroundColor(android.graphics.Color.parseColor(colors.mapBackgroundHex))
+                            MapLibreMapHelper.applyCockpitStyle(
+                                context = mapView.context,
+                                map = map,
+                                isDayHighContrast = isDayHighContrast,
+                                location = location,
+                                primaryColor = primaryColor,
+                                darkColor = darkColor,
+                                followVehicleHeading = followHeading,
+                                is3dPerspective = is3dPerspective
+                            )
+                        }
                         val target = MapProjectionHelper.calculateRoadAheadTarget(
                             location = location,
                             followHeading = followHeading,
@@ -304,29 +323,33 @@ private fun MapLibreCardMapView(
                             .bearing(target.bearing.toDouble())
                             .build()
                         map.easeCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 850)
-                        MapLibreMapHelper.updateVehicleLocation(
-                            mapView.context,
-                            map,
-                            location,
-                            primaryColor,
-                            darkColor,
-                            followVehicleHeading = followHeading,
-                            is3dPerspective = is3dPerspective
-                        )
+                        if (!contrastChanged) {
+                            MapLibreMapHelper.updateVehicleLocation(
+                                mapView.context,
+                                map,
+                                location,
+                                primaryColor,
+                                darkColor,
+                                followVehicleHeading = followHeading,
+                                is3dPerspective = is3dPerspective
+                            )
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Sombra sutil nas bordas para integração com o cockpit
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color.Transparent, Color(0x66000000)),
-                        center = Offset(size.width / 2f, size.height / 2f),
-                        radius = size.maxDimension / 1.6f
+            // Vinheta apenas no modo noturno (removida no modo Dia para máxima visibilidade)
+            if (colors.mapVignetteAlpha > 0f) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = colors.mapVignetteAlpha)),
+                            center = Offset(size.width / 2f, size.height / 2f),
+                            radius = size.maxDimension / 1.5f
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -345,6 +368,8 @@ private fun OsmCardMapView(
     isMapPaused: Boolean
 ) {
     val accent = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
+    val isDayHighContrast = colors.isDayHighContrast
     val primaryColor = accent.primary.toArgb()
     val darkColor = accent.dark.toArgb()
     var osmMapViewInstance by remember { mutableStateOf<OsmMapView?>(null) }
@@ -385,7 +410,8 @@ private fun OsmCardMapView(
                         initialZoom = cardZoom,
                         primaryColor = primaryColor,
                         darkColor = darkColor,
-                        followHeading = followHeading
+                        followHeading = followHeading,
+                        isDayHighContrast = isDayHighContrast
                     )
                     osmMapViewInstance = mv
                     mv
@@ -393,15 +419,13 @@ private fun OsmCardMapView(
                 update = { mapView ->
                     if (isMapPaused) return@AndroidView
                     val tracker = mapView.tag as? OsmRenderTracker
-                    if (tracker != null && !tracker.shouldUpdate(location, followHeading, is3dPerspective, isDarkMode, primaryColor)) {
+                    if (tracker != null && !tracker.shouldUpdate(location, followHeading, is3dPerspective, isDarkMode, primaryColor, isDayHighContrast)) {
                         return@AndroidView
                     }
 
-                    if (isDarkMode) {
-                        mapView.overlayManager.tilesOverlay.setColorFilter(OsmdroidMapHelper.DarkCockpitColorFilter)
-                    } else {
-                        mapView.overlayManager.tilesOverlay.setColorFilter(null)
-                    }
+                    mapView.overlayManager.tilesOverlay.setColorFilter(
+                        OsmdroidMapHelper.resolveColorFilter(isDarkMode, isDayHighContrast)
+                    )
 
                     val target = MapProjectionHelper.calculateRoadAheadTarget(
                         location = location,
@@ -427,15 +451,17 @@ private fun OsmCardMapView(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Sombra sutil nas bordas para integração com o cockpit
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color.Transparent, Color(0x66000000)),
-                        center = Offset(size.width / 2f, size.height / 2f),
-                        radius = size.maxDimension / 1.6f
+            // Vinheta apenas no modo noturno (removida no modo Dia para máxima visibilidade)
+            if (colors.mapVignetteAlpha > 0f) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = colors.mapVignetteAlpha)),
+                            center = Offset(size.width / 2f, size.height / 2f),
+                            radius = size.maxDimension / 1.5f
+                        )
                     )
-                )
+                }
             }
         }
     }

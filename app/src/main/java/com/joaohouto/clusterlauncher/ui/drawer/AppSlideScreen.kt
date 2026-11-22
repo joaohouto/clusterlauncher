@@ -44,6 +44,7 @@ import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.model.AppItem
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
@@ -123,9 +124,10 @@ fun AppSlideScreen(
     // Modal to pin app to a Quick Dock slot or uninstall / inspect app
     selectedAppForPinning?.let { app ->
         val accent = LocalClusterAccent.current.primary
+        val colors = LocalClusterColors.current
         AlertDialog(
             onDismissRequest = { selectedAppForPinning = null },
-            containerColor = SurfaceCard,
+            containerColor = colors.surfaceCard,
             title = {
                 Text(
                     text = stringResource(R.string.drawer_app_options_title, app.label),

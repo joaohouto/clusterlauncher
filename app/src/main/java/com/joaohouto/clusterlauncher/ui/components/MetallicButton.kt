@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.MetallicIntermediate
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
@@ -67,35 +68,36 @@ fun MetallicButton(
     contentDescription: String? = null
 ) {
     val accent = LocalClusterAccent.current
+    val colors = LocalClusterColors.current
 
-    val backgroundBrush = remember(style, isActive, accent) {
+    val backgroundBrush = remember(style, isActive, accent, colors) {
         when (style) {
             MetallicButtonStyle.Accent -> Brush.verticalGradient(
                 colors = listOf(accent.primary, accent.dark)
             )
             MetallicButtonStyle.Standard -> if (isActive) {
-                Brush.verticalGradient(listOf(MetallicIntermediate, SurfaceCard))
+                Brush.verticalGradient(listOf(colors.metallicIntermediate, colors.surfaceCard))
             } else {
-                Brush.verticalGradient(listOf(SurfaceCard, Color(0xFF101215)))
+                Brush.verticalGradient(listOf(colors.surfaceCardElevated, colors.backgroundSecondary))
             }
             MetallicButtonStyle.Outlined -> Brush.verticalGradient(
-                colors = listOf(SurfaceCard, SurfaceCard)
+                colors = listOf(colors.surfaceCard, colors.surfaceCard)
             )
         }
     }
 
-    val borderStroke = remember(style, isActive, accent) {
+    val borderStroke = remember(style, isActive, accent, colors) {
         when {
             isActive -> BorderStroke(1.5.dp, accent.primary)
             style == MetallicButtonStyle.Accent -> BorderStroke(1.dp, accent.primary.copy(alpha = 0.8f))
-            else -> BorderStroke(1.dp, SurfaceCardBorder)
+            else -> BorderStroke(1.dp, colors.surfaceCardBorder)
         }
     }
 
     val contentColor = when {
         isActive -> accent.primary
         style == MetallicButtonStyle.Accent -> accent.onPrimary
-        else -> TextPrimary
+        else -> colors.textPrimary
     }
 
     Surface(

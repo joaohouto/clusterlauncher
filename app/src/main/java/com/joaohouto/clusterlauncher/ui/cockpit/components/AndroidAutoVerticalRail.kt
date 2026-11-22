@@ -44,6 +44,7 @@ import com.joaohouto.clusterlauncher.data.update.AppUpdateManager
 import com.joaohouto.clusterlauncher.data.update.UpdateStatus
 import com.joaohouto.clusterlauncher.ui.components.MetallicButton
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextDisabled
@@ -73,17 +74,18 @@ fun AndroidAutoVerticalRail(
 ) {
     val context = LocalContext.current
     val accent = LocalClusterAccent.current.primary
+    val colors = LocalClusterColors.current
     val isBluetoothConnected by BluetoothStateReceiver.isBluetoothConnected.collectAsState()
     val updateStatus by AppUpdateManager.updateStatus.collectAsState()
     val hasUpdate = updateStatus is UpdateStatus.UpdateAvailable || updateStatus is UpdateStatus.ReadyToInstall
 
     val railShape = RoundedCornerShape(22.dp)
-    val railBackgroundBrush = remember {
+    val railBackgroundBrush = remember(colors) {
         Brush.verticalGradient(
             colors = listOf(
-                Color(0xFF14171D),
-                Color(0xFF0F1115),
-                Color(0xFF0B0C0F)
+                colors.surfaceCard,
+                colors.backgroundSecondary,
+                colors.background
             )
         )
     }
@@ -94,7 +96,7 @@ fun AndroidAutoVerticalRail(
             .fillMaxHeight()
             .clip(railShape)
             .background(railBackgroundBrush)
-            .border(1.dp, SurfaceCardBorder, railShape)
+            .border(1.dp, colors.surfaceCardBorder, railShape)
             .padding(vertical = 12.dp, horizontal = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
@@ -145,8 +147,8 @@ fun AndroidAutoVerticalRail(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            val btBorderColor = if (isBluetoothConnected) accent.copy(alpha = 0.7f) else SurfaceCardBorder
-            val btBgColor = if (isBluetoothConnected) accent.copy(alpha = 0.16f) else SurfaceCard
+            val btBorderColor = if (isBluetoothConnected) accent.copy(alpha = 0.75f) else colors.surfaceCardBorder
+            val btBgColor = if (isBluetoothConnected) accent.copy(alpha = 0.18f) else colors.surfaceCard
 
             // Botão Bluetooth (apenas ícone)
             Box(
@@ -164,7 +166,7 @@ fun AndroidAutoVerticalRail(
                 Icon(
                     imageVector = if (isBluetoothConnected) Icons.Rounded.BluetoothConnected else Icons.Rounded.Bluetooth,
                     contentDescription = stringResource(R.string.bluetooth),
-                    tint = if (isBluetoothConnected) accent else TextDisabled,
+                    tint = if (isBluetoothConnected) accent else colors.textDisabled,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -174,15 +176,15 @@ fun AndroidAutoVerticalRail(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(if (hasUpdate) accent.copy(alpha = 0.16f) else SurfaceCard)
-                    .border(1.dp, if (hasUpdate) accent else SurfaceCardBorder, CircleShape)
+                    .background(if (hasUpdate) accent.copy(alpha = 0.18f) else colors.surfaceCard)
+                    .border(1.dp, if (hasUpdate) accent else colors.surfaceCardBorder, CircleShape)
                     .clickable(onClick = onSettingsClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Settings,
                     contentDescription = stringResource(R.string.settings),
-                    tint = if (hasUpdate) accent else TextSecondary,
+                    tint = if (hasUpdate) accent else colors.textSecondary,
                     modifier = Modifier.size(28.dp)
                 )
                 if (hasUpdate) {

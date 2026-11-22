@@ -242,8 +242,8 @@ object LocalMBTilesServer {
                     }
                 }
                 send404(client)
-            } else if (path == "/style.json") {
-                val styleJson = buildCockpitDarkStyle(port)
+            } else if (path == "/style.json" || path == "/style-day.json") {
+                val styleJson = buildCockpitStyle(port, isDayHighContrast = path == "/style-day.json")
                 sendResponse(client, styleJson.toByteArray(Charsets.UTF_8), isPbf = false, contentType = "application/json")
             } else {
                 send404(client)
@@ -320,11 +320,60 @@ object LocalMBTilesServer {
     /**
      * Gera o estilo visual JSON esportivo automotivo escuro compatível com o schema OpenMapTiles.
      */
-    fun buildCockpitDarkStyle(serverPort: Int): String {
+    fun buildCockpitDarkStyle(serverPort: Int): String =
+        buildCockpitStyle(serverPort, isDayHighContrast = false)
+
+    /**
+     * Gera o estilo visual JSON automotivo (OpenMapTiles) com suporte a:
+     * - Modo Noite ([isDayHighContrast] = false): escuro suave para conforto noturno.
+     * - Modo Dia ([isDayHighContrast] = true): mantém fundo escuro grafite, porém com cinzas
+     *   bem mais claros, ruas/rodovias/água/rótulos de alto contraste para leitura sob sol forte.
+     */
+    fun buildCockpitStyle(serverPort: Int, isDayHighContrast: Boolean): String {
+        val styleName = if (isDayHighContrast) "Cluster Cockpit Day High Contrast" else "Cluster Cockpit Dark"
+        val background = if (isDayHighContrast) "#181C24" else "#0E1014"
+        val wood = if (isDayHighContrast) "#1D3126" else "#111814"
+        val sand = if (isDayHighContrast) "#2C2820" else "#1A1813"
+        val wetland = if (isDayHighContrast) "#192D33" else "#0E181B"
+        val residential = if (isDayHighContrast) "#212734" else "#14171E"
+        val commercial = if (isDayHighContrast) "#252C3B" else "#161922"
+        val industrial = if (isDayHighContrast) "#232833" else "#15171D"
+        val park = if (isDayHighContrast) "#21382C" else "#131918"
+        val water = if (isDayHighContrast) "#1E3E66" else "#151F33"
+        val aeroApron = if (isDayHighContrast) "#293040" else "#181C26"
+        val aeroRunway = if (isDayHighContrast) "#8CA0C2" else "#53627E"
+        val aeroTaxiway = if (isDayHighContrast) "#5D6E8A" else "#333D4F"
+        val boundaryCountry = if (isDayHighContrast) "#6E7A94" else "#3B4254"
+        val boundaryState = if (isDayHighContrast) "#505B73" else "#282E3D"
+        val buildingShadow = if (isDayHighContrast) "#0E1118" else "#07080D"
+        val buildingFill = if (isDayHighContrast) "#2E374A" else "#1E2432"
+        val buildingOutline = if (isDayHighContrast) "#505E7A" else "#2E374A"
+        val roadTunnel = if (isDayHighContrast) "#3B4457" else "#1C202B"
+        val railwayBase = if (isDayHighContrast) "#7886A0" else "#424B5D"
+        val railwayTies = if (isDayHighContrast) "#1E232E" else "#11141A"
+        val roadMinor = if (isDayHighContrast) "#5E6B82" else "#28303F"
+        val roadSecondary = if (isDayHighContrast) "#8090AD" else "#354054"
+        val roadPrimary = if (isDayHighContrast) "#A4B6D4" else "#485670"
+        val roadCasing = if (isDayHighContrast) "#131720" else "#0D0F14"
+        val roadTrunk = if (isDayHighContrast) "#C4D3EC" else "#5A6A88"
+        val roadMotorway = if (isDayHighContrast) "#E5EEFC" else "#6E80A3"
+        val bridgeCasing = if (isDayHighContrast) "#0E1117" else "#07080B"
+        val bridgeDeck = if (isDayHighContrast) "#AEBEDB" else "#52607A"
+        val onewayColor = if (isDayHighContrast) "#D2DDF0" else "#70809C"
+        val haloColor = if (isDayHighContrast) "#12151C" else "#0C0D10"
+        val waterNameColor = if (isDayHighContrast) "#79A6D6" else "#3E5D80"
+        val roadNameMajor = if (isDayHighContrast) "#FFFFFF" else "#DCE3F0"
+        val roadNameMinor = if (isDayHighContrast) "#E8EEF8" else "#A0AABA"
+        val roadRefColor = if (isDayHighContrast) "#FFFFFF" else "#E2E8F0"
+        val aerodromeColor = if (isDayHighContrast) "#BDD0F0" else "#8EA3C7"
+        val poiLabelColor = if (isDayHighContrast) "#F4F7FC" else "#E2E7F0"
+        val placeCityColor = if (isDayHighContrast) "#FFFFFF" else "#F0F3F8"
+        val placeSuburbColor = if (isDayHighContrast) "#CED8EA" else "#8C96A8"
+
         return """
         {
           "version": 8,
-          "name": "Cluster Cockpit Dark",
+          "name": "$styleName",
           "glyphs": "http://127.0.0.1:$serverPort/glyphs/{fontstack}/{range}.pbf",
           "sources": {
             "openmaptiles": {
@@ -341,7 +390,7 @@ object LocalMBTilesServer {
               "id": "background",
               "type": "background",
               "paint": {
-                "background-color": "#0E1014"
+                "background-color": "$background"
               }
             },
             {
@@ -351,8 +400,8 @@ object LocalMBTilesServer {
               "source-layer": "landcover",
               "filter": ["in", "class", "wood", "forest", "scrub", "grass", "crop"],
               "paint": {
-                "fill-color": "#111814",
-                "fill-opacity": 0.8
+                "fill-color": "$wood",
+                "fill-opacity": 0.85
               }
             },
             {
@@ -362,8 +411,8 @@ object LocalMBTilesServer {
               "source-layer": "landcover",
               "filter": ["==", "class", "sand"],
               "paint": {
-                "fill-color": "#1A1813",
-                "fill-opacity": 0.65
+                "fill-color": "$sand",
+                "fill-opacity": 0.7
               }
             },
             {
@@ -373,8 +422,8 @@ object LocalMBTilesServer {
               "source-layer": "landcover",
               "filter": ["==", "class", "wetland"],
               "paint": {
-                "fill-color": "#0E181B",
-                "fill-opacity": 0.7
+                "fill-color": "$wetland",
+                "fill-opacity": 0.75
               }
             },
             {
@@ -384,7 +433,7 @@ object LocalMBTilesServer {
               "source-layer": "landuse",
               "filter": ["==", "class", "residential"],
               "paint": {
-                "fill-color": "#14171E",
+                "fill-color": "$residential",
                 "fill-opacity": 0.85
               }
             },
@@ -395,8 +444,8 @@ object LocalMBTilesServer {
               "source-layer": "landuse",
               "filter": ["in", "class", "commercial", "retail"],
               "paint": {
-                "fill-color": "#161922",
-                "fill-opacity": 0.7
+                "fill-color": "$commercial",
+                "fill-opacity": 0.75
               }
             },
             {
@@ -406,8 +455,8 @@ object LocalMBTilesServer {
               "source-layer": "landuse",
               "filter": ["==", "class", "industrial"],
               "paint": {
-                "fill-color": "#15171D",
-                "fill-opacity": 0.7
+                "fill-color": "$industrial",
+                "fill-opacity": 0.75
               }
             },
             {
@@ -416,8 +465,8 @@ object LocalMBTilesServer {
               "source": "openmaptiles",
               "source-layer": "park",
               "paint": {
-                "fill-color": "#131918",
-                "fill-opacity": 0.75
+                "fill-color": "$park",
+                "fill-opacity": 0.8
               }
             },
             {
@@ -426,7 +475,7 @@ object LocalMBTilesServer {
               "source": "openmaptiles",
               "source-layer": "water",
               "paint": {
-                "fill-color": "#151F33"
+                "fill-color": "$water"
               }
             },
             {
@@ -435,8 +484,8 @@ object LocalMBTilesServer {
               "source": "openmaptiles",
               "source-layer": "waterway",
               "paint": {
-                "line-color": "#151F33",
-                "line-width": 1.5
+                "line-color": "$water",
+                "line-width": 1.8
               }
             },
             {
@@ -447,8 +496,8 @@ object LocalMBTilesServer {
               "minzoom": 10,
               "filter": ["==", "class", "apron"],
               "paint": {
-                "fill-color": "#181C26",
-                "fill-opacity": 0.8
+                "fill-color": "$aeroApron",
+                "fill-opacity": 0.85
               }
             },
             {
@@ -459,7 +508,7 @@ object LocalMBTilesServer {
               "minzoom": 8,
               "filter": ["==", "class", "runway"],
               "paint": {
-                "line-color": "#53627E",
+                "line-color": "$aeroRunway",
                 "line-width": {
                   "base": 1.2,
                   "stops": [[8, 1.2], [11, 3.5], [14, 10.0], [17, 24.0]]
@@ -474,7 +523,7 @@ object LocalMBTilesServer {
               "minzoom": 11,
               "filter": ["==", "class", "taxiway"],
               "paint": {
-                "line-color": "#333D4F",
+                "line-color": "$aeroTaxiway",
                 "line-width": {
                   "base": 1.2,
                   "stops": [[11, 1.0], [14, 3.5], [17, 8.0]]
@@ -488,8 +537,8 @@ object LocalMBTilesServer {
               "source-layer": "boundary",
               "filter": ["==", "admin_level", 2],
               "paint": {
-                "line-color": "#3B4254",
-                "line-width": 1.2,
+                "line-color": "$boundaryCountry",
+                "line-width": 1.4,
                 "line-dasharray": [3, 2]
               }
             },
@@ -500,8 +549,8 @@ object LocalMBTilesServer {
               "source-layer": "boundary",
               "filter": [">", "admin_level", 2],
               "paint": {
-                "line-color": "#282E3D",
-                "line-width": 0.8,
+                "line-color": "$boundaryState",
+                "line-width": 1.0,
                 "line-dasharray": [2, 2]
               }
             },
@@ -512,7 +561,7 @@ object LocalMBTilesServer {
               "source-layer": "building",
               "minzoom": 13,
               "paint": {
-                "fill-color": "#07080D",
+                "fill-color": "$buildingShadow",
                 "fill-opacity": {
                   "base": 1.0,
                   "stops": [[13, 0.25], [15, 0.45], [17, 0.6]]
@@ -528,10 +577,10 @@ object LocalMBTilesServer {
               "source-layer": "building",
               "minzoom": 13,
               "paint": {
-                "fill-color": "#1E2432",
+                "fill-color": "$buildingFill",
                 "fill-opacity": {
                   "base": 1.0,
-                  "stops": [[13, 0.6], [15, 0.85], [17, 0.95]]
+                  "stops": [[13, 0.65], [15, 0.88], [17, 0.96]]
                 }
               }
             },
@@ -542,12 +591,12 @@ object LocalMBTilesServer {
               "source-layer": "building",
               "minzoom": 13,
               "paint": {
-                "line-color": "#2E374A",
+                "line-color": "$buildingOutline",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[13, 0.4], [15, 0.8], [17, 1.2]]
+                  "stops": [[13, 0.5], [15, 0.9], [17, 1.3]]
                 },
-                "line-opacity": 0.85
+                "line-opacity": 0.9
               }
             },
             {
@@ -557,7 +606,7 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["==", "brunnel", "tunnel"],
               "paint": {
-                "line-color": "#1C202B",
+                "line-color": "$roadTunnel",
                 "line-dasharray": [3, 2],
                 "line-width": {
                   "base": 1.2,
@@ -573,7 +622,7 @@ object LocalMBTilesServer {
               "minzoom": 8,
               "filter": ["in", "class", "rail", "subway", "tram", "light_rail", "transit"],
               "paint": {
-                "line-color": "#424B5D",
+                "line-color": "$railwayBase",
                 "line-width": {
                   "base": 1.2,
                   "stops": [[8, 0.8], [12, 1.8], [16, 3.5]]
@@ -588,7 +637,7 @@ object LocalMBTilesServer {
               "minzoom": 12,
               "filter": ["in", "class", "rail", "subway", "tram", "light_rail", "transit"],
               "paint": {
-                "line-color": "#11141A",
+                "line-color": "$railwayTies",
                 "line-width": {
                   "base": 1.2,
                   "stops": [[12, 1.2], [16, 2.8]]
@@ -603,10 +652,10 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "minor", "service", "residential", "track", "path"],
               "paint": {
-                "line-color": "#28303F",
+                "line-color": "$roadMinor",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[10, 0.7], [14, 2.2], [17, 4.8]]
+                  "stops": [[10, 0.8], [14, 2.4], [17, 5.2]]
                 }
               }
             },
@@ -617,10 +666,10 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "secondary", "tertiary"],
               "paint": {
-                "line-color": "#354054",
+                "line-color": "$roadSecondary",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[7, 0.8], [12, 2.2], [16, 6.0]]
+                  "stops": [[7, 0.9], [12, 2.5], [16, 6.5]]
                 }
               }
             },
@@ -631,10 +680,10 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "primary", "primary_link"],
               "paint": {
-                "line-color": "#485670",
+                "line-color": "$roadPrimary",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[6, 1.6], [10, 3.2], [13, 5.5], [16, 10.0], [17, 12.5]]
+                  "stops": [[6, 1.8], [10, 3.5], [13, 6.0], [16, 10.5], [17, 13.0]]
                 }
               }
             },
@@ -645,10 +694,10 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "trunk", "trunk_link"],
               "paint": {
-                "line-color": "#0D0F14",
+                "line-color": "$roadCasing",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[5, 2.4], [9, 4.2], [12, 7.2], [15, 12.0], [17, 17.5]]
+                  "stops": [[5, 2.6], [9, 4.5], [12, 7.6], [15, 12.5], [17, 18.0]]
                 }
               }
             },
@@ -659,10 +708,10 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "trunk", "trunk_link"],
               "paint": {
-                "line-color": "#5A6A88",
+                "line-color": "$roadTrunk",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[5, 1.6], [9, 3.2], [12, 5.5], [15, 9.8], [17, 14.0]]
+                  "stops": [[5, 1.8], [9, 3.4], [12, 5.8], [15, 10.2], [17, 14.5]]
                 }
               }
             },
@@ -673,10 +722,10 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "motorway", "motorway_link"],
               "paint": {
-                "line-color": "#0D0F14",
+                "line-color": "$roadCasing",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[5, 2.8], [9, 5.0], [12, 8.5], [15, 14.0], [17, 20.0]]
+                  "stops": [[5, 3.0], [9, 5.2], [12, 8.8], [15, 14.5], [17, 20.5]]
                 }
               }
             },
@@ -687,10 +736,10 @@ object LocalMBTilesServer {
               "source-layer": "transportation",
               "filter": ["in", "class", "motorway", "motorway_link"],
               "paint": {
-                "line-color": "#6E80A3",
+                "line-color": "$roadMotorway",
                 "line-width": {
                   "base": 1.2,
-                  "stops": [[5, 2.0], [9, 3.8], [12, 6.5], [15, 11.5], [17, 16.5]]
+                  "stops": [[5, 2.2], [9, 4.0], [12, 6.8], [15, 12.0], [17, 17.0]]
                 }
               }
             },
@@ -702,7 +751,7 @@ object LocalMBTilesServer {
               "minzoom": 11,
               "filter": ["==", "brunnel", "bridge"],
               "paint": {
-                "line-color": "#07080B",
+                "line-color": "$bridgeCasing",
                 "line-width": {
                   "base": 1.2,
                   "stops": [[11, 8.5], [14, 14.0], [17, 22.0]]
@@ -717,7 +766,7 @@ object LocalMBTilesServer {
               "minzoom": 11,
               "filter": ["==", "brunnel", "bridge"],
               "paint": {
-                "line-color": "#52607A",
+                "line-color": "$bridgeDeck",
                 "line-width": {
                   "base": 1.2,
                   "stops": [[11, 6.0], [14, 11.0], [17, 17.5]]
@@ -741,8 +790,8 @@ object LocalMBTilesServer {
                 "text-rotation-alignment": "map"
               },
               "paint": {
-                "text-color": "#70809C",
-                "text-opacity": 0.85
+                "text-color": "$onewayColor",
+                "text-opacity": 0.9
               }
             },
             {
@@ -762,8 +811,8 @@ object LocalMBTilesServer {
                 "text-rotation-alignment": "map"
               },
               "paint": {
-                "text-color": "#70809C",
-                "text-opacity": 0.85
+                "text-color": "$onewayColor",
+                "text-opacity": 0.9
               }
             },
             {
@@ -793,7 +842,7 @@ object LocalMBTilesServer {
                   "#78909C"
                 ],
                 "circle-stroke-width": 1.5,
-                "circle-stroke-color": "#0C0D10"
+                "circle-stroke-color": "$haloColor"
               }
             },
             {
@@ -810,9 +859,9 @@ object LocalMBTilesServer {
                 "text-letter-spacing": 0.05
               },
               "paint": {
-                "text-color": "#3E5D80",
-                "text-halo-color": "#0C0D10",
-                "text-halo-width": 1.2
+                "text-color": "$waterNameColor",
+                "text-halo-color": "$haloColor",
+                "text-halo-width": 1.4
               }
             },
             {
@@ -834,9 +883,9 @@ object LocalMBTilesServer {
                 "text-rotation-alignment": "map"
               },
               "paint": {
-                "text-color": "#DCE3F0",
-                "text-halo-color": "#0C0D10",
-                "text-halo-width": 2.0
+                "text-color": "$roadNameMajor",
+                "text-halo-color": "$haloColor",
+                "text-halo-width": 2.2
               }
             },
             {
@@ -858,9 +907,9 @@ object LocalMBTilesServer {
                 "text-rotation-alignment": "map"
               },
               "paint": {
-                "text-color": "#A0AABA",
-                "text-halo-color": "#0C0D10",
-                "text-halo-width": 1.5
+                "text-color": "$roadNameMinor",
+                "text-halo-color": "$haloColor",
+                "text-halo-width": 1.8
               }
             },
             {
@@ -882,9 +931,9 @@ object LocalMBTilesServer {
                 "text-rotation-alignment": "map"
               },
               "paint": {
-                "text-color": "#E2E8F0",
-                "text-halo-color": "#0C0D10",
-                "text-halo-width": 2.0
+                "text-color": "$roadRefColor",
+                "text-halo-color": "$haloColor",
+                "text-halo-width": 2.2
               }
             },
             {
@@ -904,8 +953,8 @@ object LocalMBTilesServer {
                 "text-letter-spacing": 0.08
               },
               "paint": {
-                "text-color": "#8EA3C7",
-                "text-halo-color": "#0C0D10",
+                "text-color": "$aerodromeColor",
+                "text-halo-color": "$haloColor",
                 "text-halo-width": 2.0
               }
             },
@@ -930,8 +979,8 @@ object LocalMBTilesServer {
                 "text-letter-spacing": 0.03
               },
               "paint": {
-                "text-color": "#E2E7F0",
-                "text-halo-color": "#0C0D10",
+                "text-color": "$poiLabelColor",
+                "text-halo-color": "$haloColor",
                 "text-halo-width": 1.8
               }
             },
@@ -953,8 +1002,8 @@ object LocalMBTilesServer {
                 "text-letter-spacing": 0.12
               },
               "paint": {
-                "text-color": "#F0F3F8",
-                "text-halo-color": "#0C0D10",
+                "text-color": "$placeCityColor",
+                "text-halo-color": "$haloColor",
                 "text-halo-width": 2.2
               }
             },
@@ -976,9 +1025,9 @@ object LocalMBTilesServer {
                 "text-letter-spacing": 0.05
               },
               "paint": {
-                "text-color": "#8C96A8",
-                "text-halo-color": "#0C0D10",
-                "text-halo-width": 1.5
+                "text-color": "$placeSuburbColor",
+                "text-halo-color": "$haloColor",
+                "text-halo-width": 1.6
               }
             }
           ]

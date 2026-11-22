@@ -73,6 +73,7 @@ import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
 import com.joaohouto.clusterlauncher.data.map.MapFileInfo
 import com.joaohouto.clusterlauncher.data.map.TileProvider
 import com.joaohouto.clusterlauncher.data.model.CarBrand
+import com.joaohouto.clusterlauncher.data.model.DisplayMode
 import com.joaohouto.clusterlauncher.data.model.EqualizerPreset
 import com.joaohouto.clusterlauncher.data.update.AppUpdateManager
 import com.joaohouto.clusterlauncher.data.update.UpdateStatus
@@ -84,6 +85,7 @@ import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.settings.SystemSettingsP
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.settings.VehicleSettingsPanel
 import com.joaohouto.clusterlauncher.ui.theme.DeepMetallicBackground
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
+import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.LocalUiScale
 import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
 import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
@@ -111,6 +113,9 @@ fun LauncherSettingsModal(
     initialTab: SettingsTab = SettingsTab.MAPS,
     selectedAccentId: String = "needle_red",
     onSelectAccent: (String) -> Unit = {},
+    displayMode: DisplayMode = DisplayMode.AUTO,
+    isDayHighContrast: Boolean = false,
+    onSelectDisplayMode: (DisplayMode) -> Unit = {},
     showMapOnHome: Boolean = true,
     onToggleShowMap: (Boolean) -> Unit = {},
     isMapDarkMode: Boolean = true,
@@ -212,14 +217,15 @@ fun LauncherSettingsModal(
             )
         }
 
+        val colors = LocalClusterColors.current
         CompositionLocalProvider(LocalDensity provides dialogScaledDensity) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .fillMaxHeight(0.90f)
                     .clip(RoundedCornerShape(20.dp))
-                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(20.dp)),
-                color = DeepMetallicBackground
+                    .border(1.dp, colors.surfaceCardBorder, RoundedCornerShape(20.dp)),
+                color = colors.background
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     // Barra Lateral de Navegação (Menu Esquerdo)
@@ -227,7 +233,7 @@ fun LauncherSettingsModal(
                         modifier = Modifier
                             .width(220.dp)
                             .fillMaxHeight()
-                            .background(Color(0xFF0A0C0F))
+                            .background(colors.sidebarBackground)
                             .padding(16.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -238,18 +244,18 @@ fun LauncherSettingsModal(
                             ) {
                                 Text(
                                     text = "Configurações",
-                                    color = TextPrimary,
+                                    color = colors.textPrimary,
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
-                                    color = Color(0xFF1E222B)
+                                    color = colors.surfaceCardElevated
                                 ) {
                                     Text(
                                         text = "v${BuildConfig.VERSION_NAME}",
-                                        color = TextSecondary,
+                                        color = colors.textSecondary,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
@@ -262,9 +268,9 @@ fun LauncherSettingsModal(
                             SettingsTab.entries.forEach { tab ->
                                 val isSelected = activeTab == tab
                                 val accent = LocalClusterAccent.current.primary
-                                val bgColor = if (isSelected) accent.copy(alpha = 0.12f) else Color.Transparent
-                                val contentColor = if (isSelected) accent else TextSecondary
-                                val borderColor = if (isSelected) accent.copy(alpha = 0.4f) else Color.Transparent
+                                val bgColor = if (isSelected) accent.copy(alpha = 0.14f) else Color.Transparent
+                                val contentColor = if (isSelected) accent else colors.textSecondary
+                                val borderColor = if (isSelected) accent.copy(alpha = 0.45f) else Color.Transparent
 
                                 Row(
                                     modifier = Modifier
@@ -313,13 +319,13 @@ fun LauncherSettingsModal(
                             Icon(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = "Fechar",
-                                tint = TextDisabled,
+                                tint = colors.textDisabled,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "Fechar",
-                                color = TextDisabled,
+                                color = colors.textDisabled,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -331,7 +337,7 @@ fun LauncherSettingsModal(
                         modifier = Modifier
                             .width(1.dp)
                             .fillMaxHeight()
-                            .background(SurfaceCardBorder)
+                            .background(colors.surfaceCardBorder)
                     )
 
                     // Painel de Conteúdo (Lado Direito)
@@ -424,6 +430,9 @@ fun LauncherSettingsModal(
                                 selectedBrand = selectedBrand,
                                 selectedAccentId = selectedAccentId,
                                 onSelectAccent = onSelectAccent,
+                                displayMode = displayMode,
+                                isDayHighContrast = isDayHighContrast,
+                                onSelectDisplayMode = onSelectDisplayMode,
                                 onSelectBrandClick = onSelectBrandClick
                             )
 
