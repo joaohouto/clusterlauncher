@@ -107,10 +107,23 @@ object MBTilesRepository {
     }
 
     /**
-     * Inicializa o repositório, descobre todos os arquivos .mbtiles e abre o mapa ativo.
+     * Inicializa o repositório, abrindo imediatamente o mapa ativo salvo (fast-path)
+     * antes de escanear os demais diretórios em segundo plano.
      */
     suspend fun initialize(context: Context) = withContext(Dispatchers.IO) {
         try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val savedActivePath = prefs.getString(PREF_ACTIVE_MAP_PATH, null)
+            if (!savedActivePath.isNullOrEmpty()) {
+                val savedFile = File(savedActivePath)
+                if (savedFile.exists() && savedFile.canRead() && savedFile.length() > 0L) {
+                    val isAlreadyOpen = activeFile?.absolutePath == savedFile.absolutePath &&
+                        (activeDatabase?.isOpen == true || _mapState.value.isMapLoaded)
+                    if (!isAlreadyOpen) {
+                        openMapFileInternal(savedFile)
+                    }
+                }
+            }
             refreshAvailableMaps(context)
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao inicializar MBTilesRepository", e)

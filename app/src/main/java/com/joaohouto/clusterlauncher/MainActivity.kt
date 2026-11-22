@@ -62,7 +62,6 @@ import androidx.lifecycle.lifecycleScope
 import com.joaohouto.clusterlauncher.data.local.AppDatabase
 import com.joaohouto.clusterlauncher.data.local.PreferencesDataStore
 import com.joaohouto.clusterlauncher.data.map.MBTilesRepository
-import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
 import com.joaohouto.clusterlauncher.data.receiver.UsbStateReceiver
@@ -144,6 +143,7 @@ class MainActivity : ComponentActivity() {
 
         UsbStateReceiver.checkInitialUsbState(this)
         BluetoothStateReceiver.checkInitialBluetoothState(this)
+        com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.restoreLastLocation(this)
         com.joaohouto.clusterlauncher.utils.DefaultLauncherHelper.updateDefaultLauncherState(this)
         com.joaohouto.clusterlauncher.ui.cockpit.components.OsmdroidMapHelper.initOsmdroid(this)
         com.joaohouto.clusterlauncher.ui.cockpit.components.MapLibreMapHelper.initMapLibre(this)
@@ -240,11 +240,6 @@ class MainActivity : ComponentActivity() {
             ) {
                 permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
             }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            }
         } else {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED
@@ -312,6 +307,11 @@ class MainActivity : ComponentActivity() {
         com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.checkPermission(this)
         if (com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.hasPermission.value) {
             com.joaohouto.clusterlauncher.data.location.GpsLocationRepository.startListening(this)
+        }
+        if (!MBTilesRepository.mapState.value.isMapLoaded) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                MBTilesRepository.initialize(this@MainActivity)
+            }
         }
         triggerScanIfEmpty()
     }

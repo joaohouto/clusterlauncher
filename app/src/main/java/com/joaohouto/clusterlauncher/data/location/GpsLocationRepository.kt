@@ -188,6 +188,11 @@ object GpsLocationRepository {
         } catch (_: Exception) {}
     }
 
+    fun restoreLastLocation(context: Context) {
+        appContext = context.applicationContext
+        restoreLastLocationFromPrefs(context)
+    }
+
     private fun restoreLastLocationFromPrefs(context: Context) {
         if (_locationState.value.latitude != 0.0 || _locationState.value.longitude != 0.0) return
         try {

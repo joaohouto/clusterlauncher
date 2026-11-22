@@ -125,7 +125,8 @@ fun FullScreenMapModal(
             if (mapState.isMapLoaded && activeFile != null && activeFile.exists()) {
                 androidx.compose.runtime.key(activeFile.absolutePath, activeFile.lastModified(), mapState.isVectorMap) {
                 if (mapState.isVectorMap) {
-                    val modalPitch = if (is3dPerspective) MapLibreMapHelper.PITCH_3D_DEGREES else MapLibreMapHelper.PITCH_2D_DEGREES
+                    // No mapa ampliado, exibimos sempre de cima (top-down, sem angulação 3D)
+                    val modalPitch = MapLibreMapHelper.PITCH_2D_DEGREES
                     // Mapa Vetorial PBF via MapLibre Native
                     AndroidView(
                         factory = { ctx ->
@@ -138,9 +139,10 @@ fun FullScreenMapModal(
                                 primaryColor = primaryColor,
                                 darkColor = darkColor,
                                 followVehicleHeading = followHeading,
-                                is3dPerspective = is3dPerspective
+                                is3dPerspective = false
                             ) { map ->
                                 mapLibreMap = map
+                                map.uiSettings.isTiltGesturesEnabled = false
                                 map.addOnCameraMoveStartedListener { reason ->
                                     if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
                                         isMapPanned = true
@@ -165,7 +167,7 @@ fun FullScreenMapModal(
                         update = { mapView ->
                             val map = mapLibreMap ?: return@AndroidView
                             val tracker = mapView.tag as? MapLibreRenderTracker
-                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, is3dPerspective, primaryColor)) {
+                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, false, primaryColor)) {
                                 return@AndroidView
                             }
 
@@ -176,7 +178,7 @@ fun FullScreenMapModal(
                                     followHeading = followHeading,
                                     zoom = currentZ,
                                     viewportHeightPx = if (mapView.height > 0) mapView.height else 600,
-                                    forwardOffset = is3dPerspective
+                                    forwardOffset = false
                                 )
 
                                 val cameraPosition = CameraPosition.Builder()
@@ -194,7 +196,7 @@ fun FullScreenMapModal(
                                 primaryColor,
                                 darkColor,
                                 followVehicleHeading = followHeading,
-                                is3dPerspective = is3dPerspective
+                                is3dPerspective = false
                             )
                         },
                         modifier = Modifier
@@ -251,7 +253,7 @@ fun FullScreenMapModal(
                         },
                         update = { mapView ->
                             val tracker = mapView.tag as? OsmRenderTracker
-                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, is3dPerspective, initialDarkMode, primaryColor)) {
+                            if (tracker != null && !tracker.shouldUpdate(locationState, followHeading, false, initialDarkMode, primaryColor)) {
                                 return@AndroidView
                             }
 
@@ -267,7 +269,7 @@ fun FullScreenMapModal(
                                     followHeading = followHeading,
                                     zoom = mapView.zoomLevelDouble,
                                     viewportHeightPx = if (mapView.height > 0) mapView.height else 600,
-                                    forwardOffset = is3dPerspective
+                                    forwardOffset = false
                                 )
                                 mapView.controller.setCenter(GeoPoint(target.latitude, target.longitude))
                                 mapView.mapOrientation = if (followHeading) -locationState.bearing else 0f
@@ -457,14 +459,13 @@ fun FullScreenMapModal(
                                     followHeading = followHeading,
                                     zoom = currentZoom.toDouble(),
                                     viewportHeightPx = 600,
-                                    forwardOffset = is3dPerspective
+                                    forwardOffset = false
                                 )
                                 if (mapState.isVectorMap) {
                                     mapLibreMap?.let { map ->
-                                        val pitch = if (is3dPerspective) MapLibreMapHelper.PITCH_3D_DEGREES else MapLibreMapHelper.PITCH_2D_DEGREES
                                         val cameraPosition = CameraPosition.Builder()
                                             .target(LatLng(target.latitude, target.longitude))
-                                            .tilt(pitch)
+                                            .tilt(MapLibreMapHelper.PITCH_2D_DEGREES)
                                             .bearing(target.bearing.toDouble())
                                             .build()
                                         map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition))

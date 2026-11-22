@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.util.Log
 import com.joaohouto.clusterlauncher.data.location.GpsLocationData
+import com.joaohouto.clusterlauncher.data.location.GpsLocationRepository
 import com.joaohouto.clusterlauncher.data.map.LocalMBTilesServer
 import android.graphics.drawable.ColorDrawable
 import org.maplibre.android.MapLibre
@@ -353,6 +354,9 @@ object MapLibreMapHelper {
                 .bearing(target.bearing.toDouble())
                 .build()
 
+            if (LocalMBTilesServer.port <= 0) {
+                LocalMBTilesServer.start()
+            }
             val styleJson = LocalMBTilesServer.buildCockpitDarkStyle(LocalMBTilesServer.port)
             val styleBuilder = Style.Builder().fromJson(styleJson)
 
@@ -362,7 +366,23 @@ object MapLibreMapHelper {
 
             map.setStyle(styleBuilder) { style ->
                 Log.i(TAG, "Estilo Cockpit Dark carregado com sucesso no MapLibre")
-                setupVehicleMarker(context, style, initialLocation, primaryColor, darkColor, followVehicleHeading, is3dPerspective)
+                val liveLocation = GpsLocationRepository.locationState.value.let { latest ->
+                    if (latest.latitude != 0.0 || latest.longitude != 0.0) latest else initialLocation
+                }
+                val liveTarget = MapProjectionHelper.calculateRoadAheadTarget(
+                    location = liveLocation,
+                    followHeading = followVehicleHeading,
+                    zoom = initialZoom,
+                    viewportHeightPx = if (mapView.height > 0) mapView.height else 400,
+                    forwardOffset = is3dPerspective
+                )
+                map.cameraPosition = CameraPosition.Builder()
+                    .target(LatLng(liveTarget.latitude, liveTarget.longitude))
+                    .zoom(initialZoom)
+                    .tilt(pitch)
+                    .bearing(liveTarget.bearing.toDouble())
+                    .build()
+                setupVehicleMarker(context, style, liveLocation, primaryColor, darkColor, followVehicleHeading, is3dPerspective)
                 onMapReady?.invoke(map)
                 mapView.postDelayed(revealMapView, 32L)
             }

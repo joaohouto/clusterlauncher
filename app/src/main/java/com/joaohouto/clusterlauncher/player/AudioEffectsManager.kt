@@ -3,6 +3,7 @@ package com.joaohouto.clusterlauncher.player
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
 import android.util.Log
+import com.joaohouto.clusterlauncher.data.model.EqualizerPreset
 
 class AudioEffectsManager {
     companion object {
@@ -14,6 +15,10 @@ class AudioEffectsManager {
     private var equalizer: Equalizer? = null
     private var currentSessionId: Int = 0
     private var isLoudnessEnabled: Boolean = false
+
+    private var isEqualizerEnabled: Boolean = false
+    private var currentPreset: EqualizerPreset = EqualizerPreset.FLAT
+    private var currentCustomBandsMb: List<Int> = listOf(0, 0, 0, 0, 0)
 
     fun updateAudioSession(audioSessionId: Int) {
         if (audioSessionId <= 0 || audioSessionId == currentSessionId) return
@@ -33,11 +38,44 @@ class AudioEffectsManager {
 
         try {
             val eq = Equalizer(0, audioSessionId)
-            eq.enabled = false
             equalizer = eq
-            Log.d(TAG, "Equalizer attached to session $audioSessionId with ${eq.numberOfBands} bands (disabled)")
+            applyEqualizerToHardware(eq)
+            Log.d(TAG, "Equalizer attached to session $audioSessionId with ${eq.numberOfBands} bands (enabled=$isEqualizerEnabled)")
         } catch (e: Exception) {
             Log.w(TAG, "Failed to initialize Equalizer on session $audioSessionId: ${e.message}")
+        }
+    }
+
+    fun applyEqualizerConfig(
+        enabled: Boolean,
+        preset: EqualizerPreset,
+        customBandsMb: List<Int>
+    ) {
+        isEqualizerEnabled = enabled
+        currentPreset = preset
+        currentCustomBandsMb = customBandsMb
+        equalizer?.let { applyEqualizerToHardware(it) }
+    }
+
+    private fun applyEqualizerToHardware(eq: Equalizer) {
+        try {
+            val bandCount = eq.numberOfBands.toInt()
+            val range = eq.bandLevelRange
+            val minMb = range.getOrNull(0)?.toInt() ?: EqualizerPreset.DEFAULT_MIN_MB
+            val maxMb = range.getOrNull(1)?.toInt() ?: EqualizerPreset.DEFAULT_MAX_MB
+            val levels = EqualizerPreset.computeBandLevelsForHardware(
+                preset = currentPreset,
+                customBandsMb = currentCustomBandsMb,
+                hardwareBandCount = bandCount,
+                minLevelMb = minMb,
+                maxLevelMb = maxMb
+            )
+            for (i in levels.indices) {
+                eq.setBandLevel(i.toShort(), levels[i])
+            }
+            eq.enabled = isEqualizerEnabled
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to apply Equalizer config: ${e.message}")
         }
     }
 

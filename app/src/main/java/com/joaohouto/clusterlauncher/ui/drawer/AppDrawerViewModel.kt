@@ -6,7 +6,6 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.joaohouto.clusterlauncher.data.model.AppItem
-import com.joaohouto.clusterlauncher.data.model.CockpitLayoutPreset
 import com.joaohouto.clusterlauncher.data.model.DockSlot
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
 import com.joaohouto.clusterlauncher.data.repository.AppDrawerRepository
@@ -167,19 +166,6 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
     fun setHideMediaWhenNotPlaying(hide: Boolean) {
         viewModelScope.launch {
             dockPreferences.setHideMediaWhenNotPlaying(hide)
-        }
-    }
-
-    val cockpitLayoutPreset: StateFlow<CockpitLayoutPreset> = dockPreferences.getCockpitLayoutPresetFlow()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = CockpitLayoutPreset.ANDROID_AUTO
-        )
-
-    fun setCockpitLayoutPreset(preset: CockpitLayoutPreset) {
-        viewModelScope.launch {
-            dockPreferences.setCockpitLayoutPreset(preset)
         }
     }
 

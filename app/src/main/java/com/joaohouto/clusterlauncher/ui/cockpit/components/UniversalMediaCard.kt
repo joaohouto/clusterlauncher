@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,10 +87,35 @@ fun FullBleedMediaCard(
             mediaState.albumArtBitmap?.asImageBitmap()
         }
 
+        var dragAmountX by remember { mutableFloatStateOf(0f) }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable(onClick = onOpenPlayer)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onOpenPlayer() },
+                        onDoubleTap = { MediaManager.playPause() }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragAmountX = 0f },
+                        onDragEnd = {
+                            val threshold = 90f
+                            if (dragAmountX < -threshold) {
+                                MediaManager.skipToNext()
+                            } else if (dragAmountX > threshold) {
+                                MediaManager.skipToPrevious()
+                            }
+                            dragAmountX = 0f
+                        },
+                        onDragCancel = { dragAmountX = 0f },
+                        onHorizontalDrag = { _, dragAmount ->
+                            dragAmountX += dragAmount
+                        }
+                    )
+                }
         ) {
             // Camada 1: Capa do álbum preenchendo 100% do card em alta qualidade
             when {

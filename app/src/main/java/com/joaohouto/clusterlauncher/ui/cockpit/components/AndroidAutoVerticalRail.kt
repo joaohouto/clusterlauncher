@@ -1,5 +1,7 @@
 package com.joaohouto.clusterlauncher.ui.cockpit.components
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,7 +37,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.model.DockSlot
+import com.joaohouto.clusterlauncher.data.model.DockSlotType
 import com.joaohouto.clusterlauncher.data.receiver.BluetoothStateReceiver
+import com.joaohouto.clusterlauncher.data.repository.AutomotivePackageResolver
 import com.joaohouto.clusterlauncher.data.update.AppUpdateManager
 import com.joaohouto.clusterlauncher.data.update.UpdateStatus
 import com.joaohouto.clusterlauncher.ui.components.MetallicButton
@@ -194,4 +198,28 @@ fun AndroidAutoVerticalRail(
             }
         }
     }
+}
+
+internal fun launchSlotApp(
+    context: Context,
+    slot: DockSlot,
+    onOpenPlayer: () -> Unit = {},
+    onFallbackPicker: () -> Unit
+) {
+    val targetPkg = slot.targetPackage
+    if (slot.type == DockSlotType.Music && AutomotivePackageResolver.isInternalPlayerPackage(targetPkg)) {
+        onOpenPlayer()
+        return
+    }
+
+    if (!targetPkg.isNullOrEmpty()) {
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPkg)
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(launchIntent)
+            return
+        }
+    }
+
+    onFallbackPicker()
 }

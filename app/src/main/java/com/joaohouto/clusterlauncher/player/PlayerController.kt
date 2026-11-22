@@ -69,6 +69,27 @@ class PlayerController private constructor(private val context: Context) {
                 instance
             }
         }
+
+        internal fun resolveFolderStartIndex(
+            allTracks: List<Track>,
+            validTracks: List<Track>,
+            startIndex: Int?,
+            effectiveShuffle: Boolean,
+            random: kotlin.random.Random = kotlin.random.Random.Default
+        ): Int {
+            if (validTracks.isEmpty()) return 0
+            if (startIndex != null) {
+                val targetTrack = allTracks.getOrNull(startIndex)
+                if (targetTrack != null) {
+                    return validTracks.indexOfFirst { it.uri == targetTrack.uri }.takeIf { it >= 0 } ?: 0
+                }
+            }
+            return if (effectiveShuffle && validTracks.size > 1) {
+                random.nextInt(validTracks.size)
+            } else {
+                0
+            }
+        }
     }
 
     private val controllerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -219,6 +240,12 @@ class PlayerController private constructor(private val context: Context) {
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 if (shouldIgnore()) return
                 val player = getActivePlayer() ?: return
+                if (!playWhenReady &&
+                    reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM &&
+                    (player.repeatMode == Player.REPEAT_MODE_ONE || player.hasNextMediaItem())
+                ) {
+                    return
+                }
                 reanchorAndSync(player)
             }
 
@@ -545,22 +572,23 @@ class PlayerController private constructor(private val context: Context) {
                     }
 
                     val now = SystemClock.elapsedRealtime()
-                    val speed = activePlayer.playbackParameters.speed.coerceAtLeast(0.1f)
-                    val projectedPos = anchorPositionMs + ((now - anchorRealtimeMs) * speed).toLong()
                     val playerPos = activePlayer.currentPosition.coerceAtLeast(0L)
 
                     val isSeekingDebounced = (now - lastSeekTimestamp) < 800L
-                    if (!isSeekingDebounced && kotlin.math.abs(projectedPos - playerPos) > 45L) {
-                        reanchorAndSync(activePlayer, explicitPositionMs = playerPos)
-                    } else {
+                    if (!isSeekingDebounced) {
                         val controller = mediaController
                         val pDuration = activePlayer.duration.takeIf { it > 0 }
                             ?: controller?.duration?.takeIf { it > 0 }
-                            ?: 0L
+                            ?: _uiState.value.durationMs
                         if (pDuration > 0 && pDuration != _uiState.value.durationMs) {
                             _uiState.value = _uiState.value.copy(durationMs = pDuration)
                         }
-                        updateLyricsLine(toDisplayedPositionMs(projectedPos, pDuration))
+
+                        anchorPositionMs = playerPos
+                        anchorRealtimeMs = now
+                        val displayedPos = toDisplayedPositionMs(playerPos, pDuration)
+                        _currentPosition.value = displayedPos
+                        updateLyricsLine(displayedPos)
                     }
                 }
             }
@@ -682,21 +710,20 @@ class PlayerController private constructor(private val context: Context) {
         }
     }
 
-    fun playFolder(folderPath: String, startIndex: Int = 0, shuffle: Boolean? = null) {
+    fun playFolder(folderPath: String, startIndex: Int? = null, shuffle: Boolean? = null) {
+        val effectiveShuffle = shuffle ?: (getActivePlayer()?.shuffleModeEnabled == true)
         controllerScope.launch {
             val (validTracks, adjustedIndex) = kotlinx.coroutines.withContext(Dispatchers.IO) {
                 val tracks = repository.getTracksForFolderSync(folderPath)
                 val valid = tracks.filter { track ->
                     track.uri.startsWith("content://") || track.path.isEmpty() || File(track.path).exists() || File(track.path).canRead()
                 }
-                val targetTrack = tracks.getOrNull(startIndex)
-                val idx = if (targetTrack != null) {
-                    valid.indexOfFirst { it.uri == targetTrack.uri }.takeIf { it >= 0 } ?: 0
-                } else if (shuffle == true && valid.size > 1) {
-                    kotlin.random.Random.nextInt(valid.size)
-                } else {
-                    0
-                }
+                val idx = resolveFolderStartIndex(
+                    allTracks = tracks,
+                    validTracks = valid,
+                    startIndex = startIndex,
+                    effectiveShuffle = effectiveShuffle
+                )
                 valid to idx
             }
 

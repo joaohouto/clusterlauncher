@@ -12,7 +12,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.joaohouto.clusterlauncher.BuildConfig
@@ -27,6 +31,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,8 +84,7 @@ class PlaybackService : MediaSessionService() {
         volumeNormalizer = VolumeNormalizerAudioProcessor()
         loudnessManager = LoudnessAnalysisManager.getInstance(this)
 
-        setupNotificationChannel()
-        setupNotificationProvider()
+        clearLegacyPlaybackNotification()
 
         initializePlayer()
         initializeMediaSession()
@@ -102,35 +106,39 @@ class PlaybackService : MediaSessionService() {
         }
 
         serviceScope.launch {
+            combine(
+                preferencesDataStore.eqEnabledFlow,
+                preferencesDataStore.eqPresetFlow,
+                preferencesDataStore.eqBandLevelsFlow
+            ) { enabled, preset, bandsMb ->
+                Triple(enabled, preset, bandsMb)
+            }.collect { (enabled, preset, bandsMb) ->
+                audioEffectsManager.applyEqualizerConfig(enabled, preset, bandsMb)
+            }
+        }
+
+        serviceScope.launch {
             restoreAutoplayState()
         }
     }
 
-    private fun setupNotificationChannel() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = android.app.NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                android.app.NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = getString(R.string.notification_channel_desc)
-                setShowBadge(false)
-            }
+    private fun clearLegacyPlaybackNotification() {
+        try {
             val notificationManager = getSystemService(android.app.NotificationManager::class.java)
-            notificationManager?.createNotificationChannel(channel)
+            notificationManager?.cancel(NOTIFICATION_ID)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                notificationManager?.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear legacy playback notification", e)
         }
     }
 
-    private fun setupNotificationProvider() {
-        val notificationProvider = androidx.media3.session.DefaultMediaNotificationProvider.Builder(this)
-            .setNotificationId(NOTIFICATION_ID)
-            .setChannelId(NOTIFICATION_CHANNEL_ID)
-            .setChannelName(R.string.notification_channel_name)
-            .build()
-        notificationProvider.setSmallIcon(R.mipmap.ic_launcher)
-        setMediaNotificationProvider(notificationProvider)
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        // Notificação de reprodução desativada intencionalmente conforme configuração do launcher.
     }
 
+    @androidx.annotation.OptIn(UnstableApi::class)
     private fun initializePlayer() {
         val renderersFactory = object : androidx.media3.exoplayer.DefaultRenderersFactory(this) {
             override fun buildAudioSink(
@@ -146,15 +154,21 @@ class PlaybackService : MediaSessionService() {
             }
         }
 
+        val extractorsFactory = DefaultExtractorsFactory()
+            .setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+        val mediaSourceFactory = DefaultMediaSourceFactory(this, extractorsFactory)
+
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .setUsage(C.USAGE_MEDIA)
             .build()
 
         player = ExoPlayer.Builder(this, renderersFactory)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .build()
+        player.pauseAtEndOfMediaItems = true
 
         if (player.audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
             audioEffectsManager.updateAudioSession(player.audioSessionId)
@@ -202,6 +216,21 @@ class PlaybackService : MediaSessionService() {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 loudnessManager.setPlaying(isPlaying)
                 saveCurrentStateImmediate()
+            }
+
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+                    when {
+                        player.repeatMode == Player.REPEAT_MODE_ONE -> {
+                            player.seekTo(player.currentMediaItemIndex, 0L)
+                            player.play()
+                        }
+                        player.hasNextMediaItem() -> {
+                            player.seekToNextMediaItem()
+                            player.play()
+                        }
+                    }
+                }
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

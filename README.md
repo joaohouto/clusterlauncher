@@ -1,33 +1,37 @@
 # Cluster Launcher ⚡
 
-> **Dashboard de cockpit esportivo e tela inicial de alta performance, 100% offline, projetado sob medida para centrais multimídia automotivas Android.**
+> **Launcher automotivo estilo Android Auto Coolwalk, 100% offline, com player de música integrado e mapas vetoriais/raster MBTiles — projetado sob medida para centrais multimídia Android.**
 
-Parte do ecossistema **Cluster** (ao lado de [Cluster Player](https://github.com/joaohouto/clusterplayer) e [Cluster Radio](https://github.com/joaohouto/clusterradio)). Acesse o portal oficial em [joaohouto.github.io/clusterlauncher](https://joaohouto.github.io/clusterlauncher).
+Parte do ecossistema **Cluster**. Acesse o portal oficial em [joaohouto.github.io/clusterlauncher](https://joaohouto.github.io/clusterlauncher).
 
 ---
 
-## 🏎️ Destaques e Ergonomia de Cockpit
+## 🏎️ Destaques e Ergonomia Automotiva
 
-* **Cockpit Dashboard com Central de Instrumentos (Página 0):** Painel horizontal de alta precisão com Mini Player universal desacoplado, relógio digital RTC de visualização rápida, indicadores de periféricos veiculares (USB/Bluetooth) e Quick Dock tátil fixa.
-* **Quick Dock Ergonômica de Acesso Rápido:** Barra fixa inferior com 5 slots configuráveis e botões táteis ampliados (64x64 dp) para operação segura em movimento.
-* **App Drawer Fluido a 60 FPS (Página 1):** Grade completa de aplicativos instalados no sistema com transição contínua via pager horizontal, sem engasgos ou requisições desnecessárias.
-* **Desacoplamento Universal de Mídia:** Intercepta e controla universalmente qualquer player de áudio ativo no sistema Android (Cluster Player, Spotify, VLC, YouTube Music, reprodutor nativo USB) através do `MediaSessionManager` e `NotificationListenerService`.
-* **Operação Estritamente 100% Offline:** Sem telemetria, sem consumo de dados móveis, sem APIs climáticas pesadas e sem dependência de conexão com a internet.
-* **Estética Automotiva Deep Metallic (`#0B0C0E`):** Tons metálicos escuros e acetinados, superfícies chanfradas, acentos esportivos (*Needle Red* `#E61924`) e tipografia de alto contraste para leitura perfeita sob sol forte.
-* **Ultra-baixo Consumo de Memória e Bateria:** Otimizado para processadores veiculares modestos (Quad-Core Cortex-A7/A53) e memórias restritas (1GB a 2GB de RAM), com decodificação `RGB_565` e isolamento estrito de recomposições no Jetpack Compose.
-* **Inicialização Escura Instantânea (Zero Flash Branco):** Tema escuro nativo no XML (`#0B0C0E`) que impede clarões brancos indesejados ao dar a partida no veículo ou ao pressionar o botão Home à noite.
+* **Cockpit Unificado estilo Android Auto:** Barra lateral vertical com botões táteis ampliados (Apps, Quick Dock configurável, Bluetooth e Configurações), card de mídia em tela cheia com gestos (swipe para trocar faixa, toque duplo para play/pause) e mapa offline integrado.
+* **Player de Música Integrado (Media3 / ExoPlayer):**
+  * Suporte a `.mp3`, `.flac`, `.wav`, `.m4a`, `.aac`, `.ogg` e `.opus` em armazenamento interno e pendrives USB.
+  * **Normalização de Volume EBU R128** + **Equalizador de 5 Bandas** com presets automotivos (*Flat, Graves, Rock, Pop, Eletrônica, Vocal, Personalizado*).
+  * **Letras sincronizadas (`.lrc`)** com ajuste de offset e sincronização exata de áudio/tela sem deriva acumulada em playlists longas.
+  * **Controle Universal de Mídia:** Intercepta e controla também players externos (Spotify, YouTube Music, VLC, etc.) via `MediaSessionManager`.
+* **Mapas Offline MBTiles (Zero-Copy para arquivos grandes):**
+  * Motor duplo: **MapLibre Native** para mapas vetoriais `.pbf` (com servidor loopback otimizado e leitura direta de arquivos 300MB–2GB+) e **osmdroid** para mapas raster.
+  * Visão 3D/2D no Cockpit e visualização **de cima (top-down)** ao ampliar o mapa em tela cheia.
+* **Estética Deep Metallic (`#0B0C0E`) & Escala de UI:** Temas de destaque automotivos, escala configurável (até 120%+) e inicialização escura instantânea (zero flash branco).
+* **Auto-Update OTA:** Verificação e instalação de novas versões diretamente via GitHub Releases.
 
 ---
 
 ## 📦 Download do APK
 
-Baixe a versão otimizada mais recente na aba de [Releases](https://github.com/joaohouto/clusterlauncher/releases/latest) ou conheça a suíte completa no site oficial em [joaohouto.github.io/clusterlauncher](https://joaohouto.github.io/clusterlauncher).
+Baixe a versão otimizada mais recente na aba de [Releases](https://github.com/joaohouto/clusterlauncher/releases/latest).
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-* **UI:** Jetpack Compose com Material 3 e Automotive Shaders/Gradients
-* **Mídia & Controle Universal:** MediaSessionManager & NotificationListenerService
-* **Persistência:** Jetpack DataStore Preferences
+* **UI:** Jetpack Compose com Material 3
+* **Áudio & Mídia:** AndroidX Media3 (ExoPlayer + MediaSession), EBU R128, Equalizer API
+* **Mapas Offline:** MapLibre Native + osmdroid + LocalMBTilesServer (SQLite mmap)
+* **Persistência:** Room + Jetpack DataStore Preferences
 * **Linguagem & Tooling:** Kotlin 2.2 / Gradle 9 / Minificação R8 ProGuard

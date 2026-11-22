@@ -83,6 +83,12 @@ object LocalMBTilesServer {
                     null,
                     SQLiteDatabase.OPEN_READONLY or SQLiteDatabase.NO_LOCALIZED_COLLATORS
                 )
+                // Otimiza leitura de arquivos MBTiles grandes (300MB+) em flash/eMMC automotivo
+                runCatching {
+                    db.rawQuery("PRAGMA mmap_size = 67108864", null)?.use { it.moveToFirst() }
+                    db.rawQuery("PRAGMA cache_size = -8000", null)?.use { it.moveToFirst() }
+                    db.rawQuery("PRAGMA temp_store = MEMORY", null)?.use { it.moveToFirst() }
+                }
                 if (minZoom == null || maxZoom == null) {
                     var parsedMin = 0
                     var parsedMax = 14
@@ -122,17 +128,20 @@ object LocalMBTilesServer {
             isRunning = true
             Log.i(TAG, "Servidor MBTiles iniciado na porta loopback $port")
 
-            scope.launch {
+            Thread({
                 while (isRunning) {
                     try {
                         val client = socket.accept()
                         scope.launch {
                             handleClient(client)
                         }
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         if (!isRunning) break
                     }
                 }
+            }, "LocalMBTilesAccept").apply {
+                isDaemon = true
+                start()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao iniciar LocalMBTilesServer", e)

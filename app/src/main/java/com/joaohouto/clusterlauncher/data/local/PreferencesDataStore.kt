@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.joaohouto.clusterlauncher.data.model.EqualizerPreset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -42,6 +43,10 @@ class PreferencesDataStore(private val context: Context) {
         val KEY_AUTOPLAY_ON_START = booleanPreferencesKey("autoplay_on_start")
         val KEY_FULL_SCREEN_MODE = booleanPreferencesKey("full_screen_mode")
         val KEY_AUTO_CHECK_UPDATES = booleanPreferencesKey("auto_check_updates")
+        val KEY_EQ_ENABLED = booleanPreferencesKey("eq_enabled")
+        val KEY_EQ_PRESET = stringPreferencesKey("eq_preset")
+        val KEY_EQ_BAND_LEVELS = stringPreferencesKey("eq_band_levels_mb")
+        val KEY_BT_AUTO_PAUSE_ON_DISCONNECT = booleanPreferencesKey("bt_auto_pause_on_disconnect")
 
         @Volatile
         private var INSTANCE: PreferencesDataStore? = null
@@ -185,6 +190,50 @@ class PreferencesDataStore(private val context: Context) {
     suspend fun saveAutoCheckUpdates(enabled: Boolean) {
         context.playerDataStore.edit { prefs ->
             prefs[KEY_AUTO_CHECK_UPDATES] = enabled
+        }
+    }
+
+    val eqEnabledFlow: Flow<Boolean> = context.playerDataStore.data.map { prefs ->
+        prefs[KEY_EQ_ENABLED] ?: false
+    }
+
+    suspend fun saveEqEnabled(enabled: Boolean) {
+        context.playerDataStore.edit { prefs ->
+            prefs[KEY_EQ_ENABLED] = enabled
+        }
+    }
+
+    val eqPresetFlow: Flow<EqualizerPreset> = context.playerDataStore.data.map { prefs ->
+        EqualizerPreset.fromId(prefs[KEY_EQ_PRESET])
+    }
+
+    suspend fun saveEqPreset(preset: EqualizerPreset) {
+        context.playerDataStore.edit { prefs ->
+            prefs[KEY_EQ_PRESET] = preset.id
+        }
+    }
+
+    val eqBandLevelsFlow: Flow<List<Int>> = context.playerDataStore.data.map { prefs ->
+        EqualizerPreset.parseBandsCsv(prefs[KEY_EQ_BAND_LEVELS])
+    }
+
+    suspend fun saveEqBandLevels(bandsMb: List<Int>) {
+        context.playerDataStore.edit { prefs ->
+            prefs[KEY_EQ_BAND_LEVELS] = EqualizerPreset.formatBandsCsv(bandsMb)
+        }
+    }
+
+    val btAutoPauseOnDisconnectFlow: Flow<Boolean> = context.playerDataStore.data.map { prefs ->
+        prefs[KEY_BT_AUTO_PAUSE_ON_DISCONNECT] ?: true
+    }
+
+    suspend fun isBtAutoPauseOnDisconnectEnabled(): Boolean {
+        return context.playerDataStore.data.first()[KEY_BT_AUTO_PAUSE_ON_DISCONNECT] ?: true
+    }
+
+    suspend fun saveBtAutoPauseOnDisconnect(enabled: Boolean) {
+        context.playerDataStore.edit { prefs ->
+            prefs[KEY_BT_AUTO_PAUSE_ON_DISCONNECT] = enabled
         }
     }
 }
