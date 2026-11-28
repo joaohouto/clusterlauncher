@@ -143,6 +143,8 @@ internal fun SystemSettingsPanel(
     onToggleMapFollowHeading: (Boolean) -> Unit,
     map3dPerspective: Boolean = true,
     onToggleMap3dPerspective: (Boolean) -> Unit = {},
+    showStreetNameOnMap: Boolean = true,
+    onToggleShowStreetNameOnMap: (Boolean) -> Unit = {},
     fullScreenMode: Boolean,
     onToggleFullScreenMode: (Boolean) -> Unit,
     swapCockpitColumns: Boolean = false,
@@ -270,6 +272,28 @@ internal fun SystemSettingsPanel(
                     Switch(
                         checked = map3dPerspective,
                         onCheckedChange = onToggleMap3dPerspective,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
+                    )
+                }
+
+                // Toggle: Exibir Rua Atual no Card do Mapa
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = stringResource(R.string.map_show_street_name), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text(text = stringResource(R.string.map_show_street_name_desc), color = TextDisabled, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = showStreetNameOnMap,
+                        onCheckedChange = onToggleShowStreetNameOnMap,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = accent,

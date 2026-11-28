@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Folder
@@ -102,7 +101,6 @@ fun IntegratedPlayerScreen(
             PlayerScreen(
                 viewModel = playerViewModel,
                 showLyrics = showLyrics,
-                onCloseToCockpit = onCloseToCockpit,
                 onNavigateToFolders = { showFolderBrowser = true }
             )
         }
@@ -113,7 +111,6 @@ fun IntegratedPlayerScreen(
 fun PlayerScreen(
     viewModel: PlayerViewModel,
     showLyrics: Boolean = true,
-    onCloseToCockpit: () -> Unit,
     onNavigateToFolders: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -173,46 +170,30 @@ fun PlayerScreen(
                 .padding(horizontal = 20.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Bar: Back + Folders
+            // Top Bar: Folders (aligned right)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 4.dp),
-                horizontalArrangement = Arrangement.Start,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    MetallicButton(
-                        onClick = onCloseToCockpit,
-                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                        text = stringResource(R.string.btn_back_generic),
-                        minSize = 64.dp,
-                        iconSize = 28.dp,
-                        textSize = 15.sp,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                        contentDescription = stringResource(R.string.btn_back_generic)
-                    )
-
-                    val folderButtonLabel = if (currentFolderName.isNotBlank()) {
-                        currentFolderName
-                    } else {
-                        stringResource(R.string.btn_playlists_folders)
-                    }
-
-                    MetallicButton(
-                        onClick = onNavigateToFolders,
-                        icon = Icons.Rounded.Folder,
-                        text = folderButtonLabel,
-                        minSize = 64.dp,
-                        iconSize = 28.dp,
-                        textSize = 15.sp,
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
-                        contentDescription = stringResource(R.string.desc_back)
-                    )
+                val folderButtonLabel = if (currentFolderName.isNotBlank()) {
+                    currentFolderName
+                } else {
+                    stringResource(R.string.btn_playlists_folders)
                 }
+
+                MetallicButton(
+                    onClick = onNavigateToFolders,
+                    icon = Icons.Rounded.Folder,
+                    text = folderButtonLabel,
+                    minSize = 76.dp,
+                    iconSize = 34.dp,
+                    textSize = 18.sp,
+                    contentPadding = PaddingValues(horizontal = 26.dp, vertical = 14.dp),
+                    contentDescription = stringResource(R.string.desc_back)
+                )
             }
 
             // Center Area: Album Art + Lyrics, Track Metadata & Progress Bar

@@ -152,7 +152,9 @@ internal fun MapsSettingsPanel(
     mapFollowHeading: Boolean,
     onToggleMapFollowHeading: (Boolean) -> Unit,
     map3dPerspective: Boolean = false,
-    onToggleMap3dPerspective: (Boolean) -> Unit = {}
+    onToggleMap3dPerspective: (Boolean) -> Unit = {},
+    showStreetNameOnMap: Boolean = true,
+    onToggleShowStreetNameOnMap: (Boolean) -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val accent = LocalClusterAccent.current.primary
@@ -313,6 +315,38 @@ internal fun MapsSettingsPanel(
                     Switch(
                         checked = map3dPerspective,
                         onCheckedChange = onToggleMap3dPerspective,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = accent,
+                            uncheckedThumbColor = TextDisabled,
+                            uncheckedTrackColor = Color(0xFF1E222B)
+                        )
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.map_show_street_name),
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.map_show_street_name_desc),
+                            color = TextDisabled,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Switch(
+                        checked = showStreetNameOnMap,
+                        onCheckedChange = onToggleShowStreetNameOnMap,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = accent,

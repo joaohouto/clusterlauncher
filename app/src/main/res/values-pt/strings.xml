@@ -197,4 +197,48 @@
     <string name="display_mode_night">Noite</string>
     <string name="display_mode_active_day">Ativo agora: Dia (Alto Contraste)</string>
     <string name="display_mode_active_night">Ativo agora: Noite (Escuro)</string>
+
+    <!-- Interface Própria de Bluetooth -->
+    <string name="bt_modal_title">Conexão Bluetooth</string>
+    <string name="bt_modal_visible_as">Visível como: %1$s</string>
+    <string name="bt_modal_ready">Pronto para conectar</string>
+    <string name="bt_modal_disabled_short">Bluetooth desativado</string>
+    <string name="bt_modal_permission_short">Permissão Bluetooth pendente</string>
+    <string name="bt_modal_unsupported_short">Adaptador padrão indisponível</string>
+    <string name="bt_modal_make_discoverable">Tornar Visível</string>
+    <string name="bt_modal_discoverable_on">Visível (120s)</string>
+    <string name="bt_modal_paired_devices">Dispositivos Pareados</string>
+    <string name="bt_modal_nearby_devices">Dispositivos Próximos</string>
+    <string name="bt_modal_no_paired">Nenhum dispositivo pareado no Android</string>
+    <string name="bt_modal_scan">Buscar</string>
+    <string name="bt_modal_stop_scan">Parar</string>
+    <string name="bt_modal_scanning_hint">Procurando dispositivos Bluetooth…</string>
+    <string name="bt_modal_tap_scan_hint">Toque em Buscar para encontrar novos aparelhos</string>
+    <string name="bt_modal_mcu_hint">Em centrais com Bluetooth no MCU, use o app da multimídia.</string>
+    <string name="bt_modal_open_system">Bluetooth da Multimídia</string>
+    <string name="bt_modal_unsupported_title">Adaptador Bluetooth indisponível</string>
+    <string name="bt_modal_unsupported_desc">Esta multimídia pode gerenciar o Bluetooth pelo app nativo do fabricante.</string>
+    <string name="bt_modal_permission_title">Permissão de Bluetooth necessária</string>
+    <string name="bt_modal_permission_desc">Conceda permissão para listar, buscar e parear dispositivos Bluetooth.</string>
+    <string name="bt_modal_off_title">Bluetooth desativado</string>
+    <string name="bt_modal_off_desc">Ative o Bluetooth para conectar seu celular ou acessórios.</string>
+    <string name="bt_modal_turn_on">Ativar Bluetooth</string>
+    <string name="bt_device_connected">Conectado</string>
+    <string name="bt_device_paired">Pareado</string>
+    <string name="bt_device_pairing">Pareando…</string>
+    <string name="bt_btn_connect">Conectar</string>
+    <string name="bt_btn_disconnect">Desconectar</string>
+    <string name="bt_btn_pair">Parear</string>
+    <string name="bt_btn_unpair">Esquecer</string>
+    <string name="bt_status_pairing">Pareando com %1$s…</string>
+    <string name="bt_status_pair_failed">Não foi possível iniciar o pareamento.</string>
+    <string name="bt_status_unpaired">Dispositivo %1$s removido.</string>
+    <string name="bt_status_connecting">Conectando a %1$s…</string>
+    <string name="bt_status_disconnecting">Desconectando %1$s…</string>
+    <string name="bt_status_scan_failed">Não foi possível iniciar a busca Bluetooth.</string>
+    <string name="bt_status_action_restricted">Ação restrita pelo Android nesta central. Use "Bluetooth da Multimídia".</string>
+
+    <!-- Faixa de Rua Atual no Card do Mapa -->
+    <string name="map_show_street_name">Exibir Rua Atual no Mapa</string>
+    <string name="map_show_street_name_desc">Mostra no topo do card do mapa o nome da rua em que o carro está</string>
 </resources>

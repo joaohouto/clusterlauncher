@@ -3,6 +3,11 @@ package com.joaohouto.clusterlauncher.ui.cockpit.components
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -24,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.NearMe
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,6 +38,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,6 +56,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -83,6 +92,7 @@ fun OfflineMapCard(
     isDarkMode: Boolean = true,
     followHeading: Boolean = true,
     is3dPerspective: Boolean = true,
+    showStreetName: Boolean = true,
     isMapPaused: Boolean = false,
     onMapClick: (() -> Unit)? = null
 ) {
@@ -90,6 +100,13 @@ fun OfflineMapCard(
     val hasPermission by GpsLocationRepository.hasPermission.collectAsState()
     val locationState by GpsLocationRepository.locationState.collectAsState()
     val mapState by MBTilesRepository.mapState.collectAsState()
+    var currentStreetName by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(showStreetName, mapState.isVectorMap, mapState.isMapLoaded) {
+        if (!showStreetName || !mapState.isVectorMap || !mapState.isMapLoaded) {
+            currentStreetName = null
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -158,7 +175,9 @@ fun OfflineMapCard(
                                     activeFile = activeFile,
                                     followHeading = followHeading,
                                     is3dPerspective = is3dPerspective,
-                                    isMapPaused = isMapPaused
+                                    showStreetName = showStreetName,
+                                    isMapPaused = isMapPaused,
+                                    onStreetNameChanged = { street -> currentStreetName = street }
                                 )
                             } else {
                                 OsmCardMapView(
@@ -179,6 +198,20 @@ fun OfflineMapCard(
                     }
 
 
+
+                    // Faixa superior flutuante com o nome da rua atual (quando disponível e ativada)
+                    AnimatedVisibility(
+                        visible = showStreetName && !currentStreetName.isNullOrBlank(),
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { -it / 2 }),
+                        exit = fadeOut() + slideOutVertically(targetOffsetY = { -it / 2 }),
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(start = 12.dp, end = 12.dp, top = 20.dp)
+                    ) {
+                        CurrentStreetBanner(
+                            streetName = currentStreetName.orEmpty()
+                        )
+                    }
 
                     // Overlay Inferior: Exibido apenas se nenhum mapa offline estiver carregado
                     if (!mapState.isMapLoaded) {
@@ -224,6 +257,42 @@ fun OfflineMapCard(
     }
 }
 
+@Composable
+private fun CurrentStreetBanner(
+    streetName: String,
+    modifier: Modifier = Modifier
+) {
+    val colors = LocalClusterColors.current
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = colors.floatingOverlaySurface,
+        border = BorderStroke(1.dp, colors.surfaceCardBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.NearMe,
+                contentDescription = null,
+                tint = colors.textSecondary,
+                modifier = Modifier.size(24.dp)
+            )
+            Text(
+                text = streetName,
+                color = colors.textPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 /**
  * Visualização do mapa vetorial no card usando MapLibre Native.
  */
@@ -233,7 +302,9 @@ private fun MapLibreCardMapView(
     activeFile: File?,
     followHeading: Boolean,
     is3dPerspective: Boolean,
-    isMapPaused: Boolean
+    showStreetName: Boolean,
+    isMapPaused: Boolean,
+    onStreetNameChanged: (String?) -> Unit
 ) {
     val accent = LocalClusterAccent.current
     val colors = LocalClusterColors.current
@@ -241,6 +312,29 @@ private fun MapLibreCardMapView(
     val primaryColor = accent.primary.toArgb()
     val darkColor = accent.dark.toArgb()
     var mapViewInstance by remember { mutableStateOf<MapLibreMapView?>(null) }
+    var lastStreetQueryMs by remember { mutableLongStateOf(0L) }
+    var consecutiveMisses by remember { mutableIntStateOf(0) }
+
+    fun refreshStreetName(map: org.maplibre.android.maps.MapLibreMap, loc: GpsLocationData, density: Float, force: Boolean = false) {
+        if (!showStreetName) {
+            onStreetNameChanged(null)
+            return
+        }
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!force && now - lastStreetQueryMs < 1100L) return
+        lastStreetQueryMs = now
+
+        val street = MapLibreMapHelper.queryCurrentStreetName(map, loc, density)
+        if (!street.isNullOrBlank()) {
+            consecutiveMisses = 0
+            onStreetNameChanged(street)
+        } else {
+            consecutiveMisses++
+            if (consecutiveMisses >= 2) {
+                onStreetNameChanged(null)
+            }
+        }
+    }
 
     LaunchedEffect(isMapPaused, mapViewInstance) {
         val mv = mapViewInstance ?: return@LaunchedEffect
@@ -251,6 +345,21 @@ private fun MapLibreCardMapView(
                 mv.onResume()
             }
         } catch (_: Exception) {}
+    }
+
+    LaunchedEffect(showStreetName, isMapPaused, mapViewInstance) {
+        val mv = mapViewInstance ?: return@LaunchedEffect
+        if (!showStreetName) {
+            onStreetNameChanged(null)
+            return@LaunchedEffect
+        }
+        if (!isMapPaused) {
+            mv.getMapAsync { map ->
+                val latest = GpsLocationRepository.locationState.value
+                val loc = if (latest.latitude != 0.0 || latest.longitude != 0.0) latest else location
+                refreshStreetName(map, loc, mv.context.resources.displayMetrics.density, force = true)
+            }
+        }
     }
 
     DisposableEffect(Unit) {
@@ -265,7 +374,7 @@ private fun MapLibreCardMapView(
     }
 
     if (activeFile != null && activeFile.exists()) {
-        val cardZoom = if (is3dPerspective) 16.0 else 15.0
+        val cardZoom = if (is3dPerspective) 16.8 else 15.8
         val cardPitch = if (is3dPerspective) MapLibreMapHelper.PITCH_3D_DEGREES else MapLibreMapHelper.PITCH_2D_DEGREES
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -281,7 +390,17 @@ private fun MapLibreCardMapView(
                         darkColor = darkColor,
                         followVehicleHeading = followHeading,
                         is3dPerspective = is3dPerspective,
-                        isDayHighContrast = isDayHighContrast
+                        isDayHighContrast = isDayHighContrast,
+                        onMapReady = { map ->
+                            map.addOnCameraIdleListener {
+                                val latest = GpsLocationRepository.locationState.value
+                                val loc = if (latest.latitude != 0.0 || latest.longitude != 0.0) latest else location
+                                refreshStreetName(map, loc, ctx.resources.displayMetrics.density, force = false)
+                            }
+                            val latest = GpsLocationRepository.locationState.value
+                            val loc = if (latest.latitude != 0.0 || latest.longitude != 0.0) latest else location
+                            refreshStreetName(map, loc, ctx.resources.displayMetrics.density, force = true)
+                        }
                     )
                     mapViewInstance = mv
                     mv
@@ -334,6 +453,7 @@ private fun MapLibreCardMapView(
                                 is3dPerspective = is3dPerspective
                             )
                         }
+                        refreshStreetName(map, location, mapView.context.resources.displayMetrics.density, force = false)
                     }
                 },
                 modifier = Modifier.fillMaxSize()
@@ -396,7 +516,7 @@ private fun OsmCardMapView(
     }
 
     if (activeFile != null && activeFile.exists()) {
-        val cardZoom = if (is3dPerspective) 16.0 else 15.0
+        val cardZoom = if (is3dPerspective) 16.8 else 15.8
 
         Box(modifier = Modifier.fillMaxSize()) {
             AndroidView(

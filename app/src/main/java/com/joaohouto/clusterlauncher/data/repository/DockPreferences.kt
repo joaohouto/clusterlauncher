@@ -194,6 +194,20 @@ class DockPreferences(private val context: Context) {
         }
     }
 
+    private val SHOW_STREET_NAME_ON_MAP_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("show_street_name_on_map")
+
+    fun getShowStreetNameOnMapFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[SHOW_STREET_NAME_ON_MAP_KEY] ?: true
+        }
+    }
+
+    suspend fun setShowStreetNameOnMap(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_STREET_NAME_ON_MAP_KEY] = enabled
+        }
+    }
+
     private val UI_SCALE_PERCENT_KEY = androidx.datastore.preferences.core.intPreferencesKey("ui_scale_percent")
 
     fun getUiScalePercentFlow(): Flow<Int> {

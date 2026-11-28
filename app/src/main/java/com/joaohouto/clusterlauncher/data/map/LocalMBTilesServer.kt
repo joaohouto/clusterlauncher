@@ -865,6 +865,18 @@ object LocalMBTilesServer {
               }
             },
             {
+              "id": "road_name_hit_area",
+              "type": "line",
+              "source": "openmaptiles",
+              "source-layer": "transportation_name",
+              "minzoom": 12,
+              "paint": {
+                "line-color": "#000000",
+                "line-opacity": 0.01,
+                "line-width": 18
+              }
+            },
+            {
               "id": "road_name_major",
               "type": "symbol",
               "source": "openmaptiles",

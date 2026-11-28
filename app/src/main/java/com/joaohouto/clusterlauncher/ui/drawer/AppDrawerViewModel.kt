@@ -182,6 +182,19 @@ class AppDrawerViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    val showStreetNameOnMap: StateFlow<Boolean> = dockPreferences.getShowStreetNameOnMapFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
+
+    fun setShowStreetNameOnMap(enabled: Boolean) {
+        viewModelScope.launch {
+            dockPreferences.setShowStreetNameOnMap(enabled)
+        }
+    }
+
     val uiScalePercent: StateFlow<Int> = dockPreferences.getUiScalePercentFlow()
         .stateIn(
             scope = viewModelScope,

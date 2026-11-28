@@ -197,4 +197,48 @@
     <string name="display_mode_night">Night</string>
     <string name="display_mode_active_day">Active now: Day (High Contrast)</string>
     <string name="display_mode_active_night">Active now: Night (Dark)</string>
+
+    <!-- Custom Bluetooth Interface -->
+    <string name="bt_modal_title">Bluetooth Connection</string>
+    <string name="bt_modal_visible_as">Visible as: %1$s</string>
+    <string name="bt_modal_ready">Ready to connect</string>
+    <string name="bt_modal_disabled_short">Bluetooth is off</string>
+    <string name="bt_modal_permission_short">Bluetooth permission pending</string>
+    <string name="bt_modal_unsupported_short">Standard adapter unavailable</string>
+    <string name="bt_modal_make_discoverable">Make Discoverable</string>
+    <string name="bt_modal_discoverable_on">Visible (120s)</string>
+    <string name="bt_modal_paired_devices">Paired Devices</string>
+    <string name="bt_modal_nearby_devices">Nearby Devices</string>
+    <string name="bt_modal_no_paired">No paired devices in Android</string>
+    <string name="bt_modal_scan">Scan</string>
+    <string name="bt_modal_stop_scan">Stop</string>
+    <string name="bt_modal_scanning_hint">Searching for Bluetooth devices…</string>
+    <string name="bt_modal_tap_scan_hint">Tap Scan to search for nearby devices</string>
+    <string name="bt_modal_mcu_hint">On MCU-based head units, use the multimedia Bluetooth app.</string>
+    <string name="bt_modal_open_system">Multimedia Bluetooth</string>
+    <string name="bt_modal_unsupported_title">Bluetooth adapter unavailable</string>
+    <string name="bt_modal_unsupported_desc">This head unit may manage Bluetooth through the OEM app.</string>
+    <string name="bt_modal_permission_title">Bluetooth permission required</string>
+    <string name="bt_modal_permission_desc">Grant permission to list, scan, and pair Bluetooth devices.</string>
+    <string name="bt_modal_off_title">Bluetooth is turned off</string>
+    <string name="bt_modal_off_desc">Turn on Bluetooth to connect your phone or accessories.</string>
+    <string name="bt_modal_turn_on">Turn On Bluetooth</string>
+    <string name="bt_device_connected">Connected</string>
+    <string name="bt_device_paired">Paired</string>
+    <string name="bt_device_pairing">Pairing…</string>
+    <string name="bt_btn_connect">Connect</string>
+    <string name="bt_btn_disconnect">Disconnect</string>
+    <string name="bt_btn_pair">Pair</string>
+    <string name="bt_btn_unpair">Forget</string>
+    <string name="bt_status_pairing">Pairing with %1$s…</string>
+    <string name="bt_status_pair_failed">Could not start pairing.</string>
+    <string name="bt_status_unpaired">Removed %1$s.</string>
+    <string name="bt_status_connecting">Connecting to %1$s…</string>
+    <string name="bt_status_disconnecting">Disconnecting %1$s…</string>
+    <string name="bt_status_scan_failed">Could not start Bluetooth scan.</string>
+    <string name="bt_status_action_restricted">Restricted by Android on this unit. Use "Multimedia Bluetooth".</string>
+
+    <!-- Current Street Name Banner on Map Card -->
+    <string name="map_show_street_name">Show Current Street on Map</string>
+    <string name="map_show_street_name_desc">Shows the current road name at the top of the home map card</string>
 </resources>

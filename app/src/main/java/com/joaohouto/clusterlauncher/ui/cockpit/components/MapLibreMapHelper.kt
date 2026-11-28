@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.CornerPathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.util.Log
 import com.joaohouto.clusterlauncher.data.location.GpsLocationData
 import com.joaohouto.clusterlauncher.data.location.GpsLocationRepository
@@ -24,9 +25,14 @@ import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.MultiLineString
 import org.maplibre.geojson.Point
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.hypot
 
 /**
  * Rastreador leve anexado ao MapView para evitar animações de câmera e updates JNI/OpenGL
@@ -83,6 +89,7 @@ object MapLibreMapHelper {
     const val VEHICLE_SOURCE_ID = "vehicle_location_source"
     const val VEHICLE_LAYER_ID = "vehicle_location_layer"
     const val VEHICLE_ICON_ID = "vehicle_arrow_icon"
+    const val ROAD_NAME_HIT_LAYER_ID = "road_name_hit_area"
     const val PITCH_3D_DEGREES = 50.0
     const val PITCH_2D_DEGREES = 0.0
 
@@ -440,5 +447,122 @@ object MapLibreMapHelper {
         }
 
         return mapView
+    }
+
+    /**
+     * Consulta o nome da rua atual diretamente dos tiles vetoriais renderizados pelo MapLibre
+     * sob a posição GPS do veículo (100% offline).
+     */
+    fun queryCurrentStreetName(
+        map: MapLibreMap?,
+        location: GpsLocationData,
+        density: Float
+    ): String? {
+        if (map == null) return null
+        val style = map.style ?: return null
+        if (!style.isFullyLoaded) return null
+        if (location.latitude == 0.0 && location.longitude == 0.0) return null
+
+        return try {
+            val screenPoint = map.projection.toScreenLocation(LatLng(location.latitude, location.longitude))
+            if (screenPoint.x.isNaN() || screenPoint.y.isNaN()) return null
+
+            val tightRadius = (14f * density).coerceAtLeast(16f)
+            val wideRadius = (28f * density).coerceAtLeast(32f)
+
+            val tightFeatures = queryRoadFeatures(map, screenPoint.x, screenPoint.y, tightRadius)
+            val candidates = if (tightFeatures.isNotEmpty()) {
+                tightFeatures
+            } else {
+                queryRoadFeatures(map, screenPoint.x, screenPoint.y, wideRadius)
+            }
+            if (candidates.isEmpty()) return null
+
+            var bestName: String? = null
+            var bestDistance = Double.MAX_VALUE
+            var bestHasFullName = false
+
+            for (feature in candidates) {
+                val extracted = extractStreetLabel(feature) ?: continue
+                val (label, hasFullName) = extracted
+                val dist = estimateFeatureDistanceMeters(feature, location.latitude, location.longitude)
+                val isBetter = when {
+                    bestName == null -> true
+                    hasFullName && !bestHasFullName && dist <= bestDistance + 12.0 -> true
+                    !hasFullName && bestHasFullName && bestDistance <= dist + 12.0 -> false
+                    else -> dist < bestDistance
+                }
+                if (isBetter) {
+                    bestName = label
+                    bestDistance = dist
+                    bestHasFullName = hasFullName
+                }
+            }
+            bestName
+        } catch (e: Exception) {
+            Log.w(TAG, "Falha ao consultar rua atual no MapLibre: ${e.message}")
+            null
+        }
+    }
+
+    private fun queryRoadFeatures(map: MapLibreMap, cx: Float, cy: Float, radiusPx: Float): List<Feature> {
+        val rect = RectF(cx - radiusPx, cy - radiusPx, cx + radiusPx, cy + radiusPx)
+        val hitFeatures = map.queryRenderedFeatures(rect, ROAD_NAME_HIT_LAYER_ID)
+        if (hitFeatures.isNotEmpty()) return hitFeatures
+        return map.queryRenderedFeatures(rect, "road_name_major", "road_name_minor", "road_ref")
+    }
+
+    private fun extractStreetLabel(feature: Feature): Pair<String, Boolean>? {
+        val name = listOf("name", "name:pt", "name:latin", "name_en")
+            .firstNotNullOfOrNull { key ->
+                runCatching { feature.getStringProperty(key)?.trim() }.getOrNull()?.takeIf { it.isNotBlank() }
+            }
+        val ref = runCatching { feature.getStringProperty("ref")?.trim() }.getOrNull()?.takeIf { it.isNotBlank() }
+
+        return when {
+            !name.isNullOrBlank() -> name to true
+            !ref.isNullOrBlank() -> ref to false
+            else -> null
+        }
+    }
+
+    private fun estimateFeatureDistanceMeters(feature: Feature, lat: Double, lon: Double): Double {
+        val geom = feature.geometry() ?: return 50.0
+        val lines: List<List<Point>> = when (geom) {
+            is LineString -> listOf(geom.coordinates())
+            is MultiLineString -> geom.coordinates()
+            is Point -> listOf(listOf(geom))
+            else -> return 50.0
+        }
+        val metersPerDegLat = 111_320.0
+        val metersPerDegLon = 111_320.0 * cos(Math.toRadians(lat)).coerceAtLeast(0.1)
+        var minDist = Double.MAX_VALUE
+
+        for (coords in lines) {
+            if (coords.isEmpty()) continue
+            if (coords.size == 1) {
+                val p = coords[0]
+                val d = hypot((p.latitude() - lat) * metersPerDegLat, (p.longitude() - lon) * metersPerDegLon)
+                if (d < minDist) minDist = d
+                continue
+            }
+            for (i in 0 until coords.size - 1) {
+                val a = coords[i]
+                val b = coords[i + 1]
+                val ax = (a.longitude() - lon) * metersPerDegLon
+                val ay = (a.latitude() - lat) * metersPerDegLat
+                val bx = (b.longitude() - lon) * metersPerDegLon
+                val by = (b.latitude() - lat) * metersPerDegLat
+                val dx = bx - ax
+                val dy = by - ay
+                val lenSq = dx * dx + dy * dy
+                val t = if (lenSq > 1e-6) ((-(ax * dx + ay * dy)) / lenSq).coerceIn(0.0, 1.0) else 0.0
+                val projX = ax + t * dx
+                val projY = ay + t * dy
+                val d = hypot(projX, projY)
+                if (d < minDist) minDist = d
+            }
+        }
+        return minDist
     }
 }

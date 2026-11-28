@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,11 +42,8 @@ import androidx.compose.ui.unit.sp
 import com.joaohouto.clusterlauncher.R
 import com.joaohouto.clusterlauncher.data.model.AppItem
 import com.joaohouto.clusterlauncher.data.model.DockSlotType
-import com.joaohouto.clusterlauncher.ui.theme.LocalClusterAccent
 import com.joaohouto.clusterlauncher.ui.theme.LocalClusterColors
 import com.joaohouto.clusterlauncher.ui.theme.NeedleRed
-import com.joaohouto.clusterlauncher.ui.theme.SurfaceCard
-import com.joaohouto.clusterlauncher.ui.theme.SurfaceCardBorder
 import com.joaohouto.clusterlauncher.ui.theme.TextPrimary
 import com.joaohouto.clusterlauncher.ui.theme.TextSecondary
 
@@ -121,56 +117,71 @@ fun AppSlideScreen(
         }
     }
 
-    // Modal to pin app to a Quick Dock slot or uninstall / inspect app
+    // Modal de opções do aplicativo (Informações / Desinstalar)
     selectedAppForPinning?.let { app ->
-        val accent = LocalClusterAccent.current.primary
         val colors = LocalClusterColors.current
         AlertDialog(
             onDismissRequest = { selectedAppForPinning = null },
             containerColor = colors.surfaceCard,
+            tonalElevation = 0.dp,
+            shape = RoundedCornerShape(18.dp),
             title = {
                 Text(
-                    text = stringResource(R.string.drawer_app_options_title, app.label),
-                    color = TextPrimary,
+                    text = app.label,
+                    color = colors.textPrimary,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = stringResource(R.string.drawer_pin_to_dock_subtitle),
-                        color = TextSecondary,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    DockSlotType.entries.forEach { slotType ->
-                        TextButton(
-                            onClick = {
-                                onPinToDock(slotType, app)
-                                selectedAppForPinning = null
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Slot: ${stringResource(slotType.defaultTitleRes)}",
-                                color = accent,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val actionShape = RoundedCornerShape(12.dp)
 
-                    Spacer(modifier = Modifier.height(4.dp))
-                    HorizontalDivider(color = SurfaceCardBorder, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Botão Desinstalar Aplicativo
-                    val actionShape = RoundedCornerShape(10.dp)
+                    // Botão Informações do Aplicativo (Configurações do Android)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(actionShape)
-                            .background(NeedleRed.copy(alpha = 0.14f))
-                            .border(BorderStroke(1.dp, NeedleRed.copy(alpha = 0.45f)), actionShape)
+                            .background(colors.backgroundSecondary)
+                            .border(BorderStroke(1.dp, colors.surfaceCardBorder), actionShape)
+                            .clickable {
+                                selectedAppForPinning = null
+                                try {
+                                    val detailsIntent = Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.fromParts("package", app.packageName, null)
+                                    ).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(detailsIntent)
+                                } catch (_: Exception) {}
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Info,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = stringResource(R.string.app_info),
+                            color = colors.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    // Botão Desinstalar Aplicativo
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(actionShape)
+                            .background(colors.backgroundSecondary)
+                            .border(BorderStroke(1.dp, colors.surfaceCardBorder), actionShape)
                             .clickable {
                                 selectedAppForPinning = null
                                 try {
@@ -193,7 +204,7 @@ fun AppSlideScreen(
                                     } catch (_: Exception) {}
                                 }
                             }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -203,50 +214,12 @@ fun AppSlideScreen(
                             tint = NeedleRed,
                             modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = stringResource(R.string.uninstall_app),
                             color = NeedleRed,
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Botão Informações do Aplicativo (Configurações do Android)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(actionShape)
-                            .background(SurfaceCard)
-                            .border(BorderStroke(1.dp, SurfaceCardBorder), actionShape)
-                            .clickable {
-                                selectedAppForPinning = null
-                                try {
-                                    val detailsIntent = Intent(
-                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        Uri.fromParts("package", app.packageName, null)
-                                    ).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(detailsIntent)
-                                } catch (_: Exception) {}
-                            }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Info,
-                            contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.app_info),
-                            color = TextSecondary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -254,7 +227,7 @@ fun AppSlideScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { selectedAppForPinning = null }) {
-                    Text(text = stringResource(R.string.btn_cancel), color = TextSecondary)
+                    Text(text = stringResource(R.string.btn_cancel), color = colors.textSecondary)
                 }
             }
         )

@@ -39,6 +39,7 @@ fun CockpitScreen(
     mapFollowHeading: Boolean = true,
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
     map3dPerspective: Boolean = true,
+    showStreetNameOnMap: Boolean = true,
     isMapPaused: Boolean = false,
     fullScreenMode: Boolean = false,
     swapCockpitColumns: Boolean = false,
@@ -110,6 +111,7 @@ fun CockpitScreen(
                                     isDarkMode = isMapDarkMode,
                                     followHeading = mapFollowHeading,
                                     is3dPerspective = map3dPerspective,
+                                    showStreetName = showStreetNameOnMap,
                                     isMapPaused = isMapPaused,
                                     onMapClick = onOpenFullScreenMap
                                 )
@@ -137,6 +139,7 @@ fun CockpitScreen(
                                     isDarkMode = isMapDarkMode,
                                     followHeading = mapFollowHeading,
                                     is3dPerspective = map3dPerspective,
+                                    showStreetName = showStreetNameOnMap,
                                     isMapPaused = isMapPaused,
                                     onMapClick = onOpenFullScreenMap
                                 )
@@ -148,6 +151,7 @@ fun CockpitScreen(
                                 isDarkMode = isMapDarkMode,
                                 followHeading = mapFollowHeading,
                                 is3dPerspective = map3dPerspective,
+                                showStreetName = showStreetNameOnMap,
                                 isMapPaused = isMapPaused,
                                 onMapClick = onOpenFullScreenMap
                             )

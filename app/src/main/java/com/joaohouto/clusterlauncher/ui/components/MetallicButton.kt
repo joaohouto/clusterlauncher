@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -60,6 +61,7 @@ fun MetallicButton(
     icon: ImageVector? = null,
     text: String? = null,
     isActive: Boolean = false,
+    isLoading: Boolean = false,
     minSize: Dp = 56.dp,
     iconSize: Dp = 26.dp,
     textSize: TextUnit = 14.sp,
@@ -126,7 +128,14 @@ fun MetallicButton(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    if (icon != null) {
+                    val hasLeadingVisual = isLoading || icon != null
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = if (style == MetallicButtonStyle.Accent) accent.onPrimary else accent.primary,
+                            modifier = Modifier.size((iconSize - 4.dp).coerceAtLeast(16.dp)),
+                            strokeWidth = 2.5.dp
+                        )
+                    } else if (icon != null) {
                         Icon(
                             imageVector = icon,
                             contentDescription = contentDescription ?: text,
@@ -134,7 +143,7 @@ fun MetallicButton(
                             modifier = Modifier.size(iconSize)
                         )
                     }
-                    if (icon != null && !text.isNullOrEmpty()) {
+                    if (hasLeadingVisual && !text.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(14.dp))
                     }
                     if (!text.isNullOrEmpty()) {
@@ -152,7 +161,14 @@ fun MetallicButton(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (icon != null) {
+                    val hasLeadingVisual = isLoading || icon != null
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = if (style == MetallicButtonStyle.Accent) accent.onPrimary else accent.primary,
+                            modifier = Modifier.size((iconSize - 4.dp).coerceAtLeast(16.dp)),
+                            strokeWidth = 2.5.dp
+                        )
+                    } else if (icon != null) {
                         Icon(
                             imageVector = icon,
                             contentDescription = contentDescription ?: text,
@@ -160,7 +176,7 @@ fun MetallicButton(
                             modifier = Modifier.size(iconSize)
                         )
                     }
-                    if (icon != null && !text.isNullOrEmpty()) {
+                    if (hasLeadingVisual && !text.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.width(10.dp))
                     }
                     if (!text.isNullOrEmpty()) {

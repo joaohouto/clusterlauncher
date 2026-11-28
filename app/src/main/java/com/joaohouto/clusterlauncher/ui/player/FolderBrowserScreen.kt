@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Pause
@@ -33,7 +32,6 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Usb
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -86,79 +84,13 @@ fun FolderBrowserScreen(
             .fillMaxSize()
             .background(colors.background)
     ) {
-        // Top Header Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                MetallicButton(
-                    onClick = onNavigateToPlayer,
-                    icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    text = stringResource(R.string.btn_back_generic),
-                    minSize = 58.dp,
-                    iconSize = 26.dp,
-                    textSize = 15.sp,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                    contentDescription = stringResource(R.string.btn_back_generic)
-                )
-
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.header_folders_playlists),
-                            color = TextPrimary,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.8.sp
-                        )
-                        if (isScanning) {
-                            Spacer(modifier = Modifier.width(12.dp))
-                            CircularProgressIndicator(
-                                color = accent,
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.status_scanning),
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                    Text(
-                        text = stringResource(R.string.folders_count, folders.size),
-                        color = TextSecondary,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-
-            MetallicButton(
-                onClick = { viewModel.rescan() },
-                icon = Icons.Rounded.Refresh,
-                text = stringResource(R.string.btn_refresh),
-                minSize = 58.dp,
-                iconSize = 24.dp,
-                textSize = 14.sp,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                contentDescription = stringResource(R.string.desc_refresh)
-            )
-        }
-
         // Main Split-View Area
         if (folders.isEmpty() && !isScanning) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -181,6 +113,17 @@ fun FolderBrowserScreen(
                         color = TextSecondary,
                         fontSize = 14.sp
                     )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    MetallicButton(
+                        onClick = { viewModel.rescan() },
+                        icon = Icons.Rounded.Refresh,
+                        text = stringResource(R.string.btn_refresh),
+                        minSize = 58.dp,
+                        iconSize = 24.dp,
+                        textSize = 15.sp,
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                        contentDescription = stringResource(R.string.desc_refresh)
+                    )
                 }
             }
         } else {
@@ -188,30 +131,50 @@ fun FolderBrowserScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Left Column: Folders List (42%)
-                LazyColumn(
+                // Left Column: Refresh Button + Folders List (42%)
+                Column(
                     modifier = Modifier
                         .weight(0.42f)
                         .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(folders, key = { it.path }, contentType = { "folder_item" }) { folder ->
-                        val isSelected = selectedFolder?.path == folder.path
-                        val isPlayingFolder = bottomBarState.currentTrack?.folderPath == folder.path
-                        SplitFolderItem(
-                            folder = folder,
-                            isSelected = isSelected,
-                            isPlayingFolder = isPlayingFolder,
-                            onSelect = { viewModel.selectFolder(folder) },
-                            onPlayFolderNow = {
-                                viewModel.playFolder(folder.path, shuffle = false)
-                                onNavigateToPlayer()
-                            }
-                        )
+                    MetallicButton(
+                        onClick = { viewModel.rescan() },
+                        icon = Icons.Rounded.Refresh,
+                        text = if (isScanning) stringResource(R.string.status_scanning) else stringResource(R.string.btn_refresh),
+                        isLoading = isScanning,
+                        minSize = 56.dp,
+                        iconSize = 24.dp,
+                        textSize = 15.sp,
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+                        contentDescription = stringResource(R.string.desc_refresh),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 12.dp)
+                    ) {
+                        items(folders, key = { it.path }, contentType = { "folder_item" }) { folder ->
+                            val isSelected = selectedFolder?.path == folder.path
+                            val isPlayingFolder = bottomBarState.currentTrack?.folderPath == folder.path
+                            SplitFolderItem(
+                                folder = folder,
+                                isSelected = isSelected,
+                                isPlayingFolder = isPlayingFolder,
+                                onSelect = { viewModel.selectFolder(folder) },
+                                onPlayFolderNow = {
+                                    viewModel.playFolder(folder.path, shuffle = false)
+                                    onNavigateToPlayer()
+                                }
+                            )
+                        }
                     }
                 }
 

@@ -75,6 +75,7 @@ import com.joaohouto.clusterlauncher.media.NotificationListenerHelper
 import com.joaohouto.clusterlauncher.player.PlayerController
 import com.joaohouto.clusterlauncher.ui.cockpit.CockpitScreen
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.BluetoothAppPickerModal
+import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.BluetoothConnectionModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.CarBrandPickerModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.FullScreenMapModal
 import com.joaohouto.clusterlauncher.ui.cockpit.dialogs.LauncherSettingsModal
@@ -400,6 +401,7 @@ private fun LauncherMainContent(
     val mapDarkMode by viewModel.mapDarkMode.collectAsState()
     val mapFollowHeading by viewModel.mapFollowHeading.collectAsState()
     val map3dPerspective by viewModel.map3dPerspective.collectAsState()
+    val showStreetNameOnMap by viewModel.showStreetNameOnMap.collectAsState()
     val accentThemeId by viewModel.accentThemeId.collectAsState()
     val swapCockpitColumns by viewModel.swapCockpitColumns.collectAsState()
     val hideMediaWhenNotPlaying by viewModel.hideMediaWhenNotPlaying.collectAsState()
@@ -414,6 +416,7 @@ private fun LauncherMainContent(
     var showBrandPicker by remember { mutableStateOf(false) }
     var showSettingsModal by remember { mutableStateOf(false) }
     var settingsInitialTab by remember { mutableStateOf(SettingsTab.MAPS) }
+    var showBluetoothModal by remember { mutableStateOf(false) }
     var showBluetoothPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(scrollToCockpitTrigger) {
@@ -444,7 +447,7 @@ private fun LauncherMainContent(
             onOpenDrawer = {
                 isAndroidAutoDrawerOpen = !isAndroidAutoDrawerOpen
             },
-            onBluetoothClick = { viewModel.launchBluetooth(context) },
+            onBluetoothClick = { showBluetoothModal = true },
             onBluetoothLongClick = { showBluetoothPicker = true },
             onSettingsClick = {
                 settingsInitialTab = if (AppUpdateManager.hasPendingUpdate) {
@@ -465,6 +468,7 @@ private fun LauncherMainContent(
             mapFollowHeading = mapFollowHeading,
             onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
             map3dPerspective = map3dPerspective,
+            showStreetNameOnMap = showStreetNameOnMap,
             isMapPaused = showFullScreenMap || showPlayer || isAndroidAutoDrawerOpen,
             fullScreenMode = fullScreenMode,
             swapCockpitColumns = swapCockpitColumns,
@@ -539,6 +543,8 @@ private fun LauncherMainContent(
                 onToggleMapFollowHeading = { viewModel.setMapFollowHeading(it) },
                 map3dPerspective = map3dPerspective,
                 onToggleMap3dPerspective = { viewModel.setMap3dPerspective(it) },
+                showStreetNameOnMap = showStreetNameOnMap,
+                onToggleShowStreetNameOnMap = { viewModel.setShowStreetNameOnMap(it) },
                 fullScreenMode = fullScreenMode,
                 onToggleFullScreenMode = { viewModel.setFullScreenMode(it) },
                 swapCockpitColumns = swapCockpitColumns,
@@ -556,6 +562,17 @@ private fun LauncherMainContent(
                     showBrandPicker = true
                 },
                 onDismiss = { showSettingsModal = false }
+            )
+        }
+
+        if (showBluetoothModal) {
+            BluetoothConnectionModal(
+                fullScreenMode = fullScreenMode,
+                onOpenSystemBluetooth = {
+                    showBluetoothModal = false
+                    viewModel.launchBluetooth(context)
+                },
+                onDismiss = { showBluetoothModal = false }
             )
         }
 

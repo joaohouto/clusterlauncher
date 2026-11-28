@@ -124,6 +124,8 @@ fun LauncherSettingsModal(
     onToggleMapFollowHeading: (Boolean) -> Unit = {},
     map3dPerspective: Boolean = true,
     onToggleMap3dPerspective: (Boolean) -> Unit = {},
+    showStreetNameOnMap: Boolean = true,
+    onToggleShowStreetNameOnMap: (Boolean) -> Unit = {},
     fullScreenMode: Boolean = false,
     onToggleFullScreenMode: (Boolean) -> Unit = {},
     swapCockpitColumns: Boolean = false,
@@ -395,7 +397,9 @@ fun LauncherSettingsModal(
                                 mapFollowHeading = mapFollowHeading,
                                 onToggleMapFollowHeading = onToggleMapFollowHeading,
                                 map3dPerspective = map3dPerspective,
-                                onToggleMap3dPerspective = onToggleMap3dPerspective
+                                onToggleMap3dPerspective = onToggleMap3dPerspective,
+                                showStreetNameOnMap = showStreetNameOnMap,
+                                onToggleShowStreetNameOnMap = onToggleShowStreetNameOnMap
                             )
 
                             SettingsTab.AUDIO -> AudioSettingsPanel(
@@ -451,6 +455,8 @@ fun LauncherSettingsModal(
                                 onToggleMapFollowHeading = onToggleMapFollowHeading,
                                 map3dPerspective = map3dPerspective,
                                 onToggleMap3dPerspective = onToggleMap3dPerspective,
+                                showStreetNameOnMap = showStreetNameOnMap,
+                                onToggleShowStreetNameOnMap = onToggleShowStreetNameOnMap,
                                 fullScreenMode = fullScreenMode,
                                 onToggleFullScreenMode = onToggleFullScreenMode,
                                 swapCockpitColumns = swapCockpitColumns,
